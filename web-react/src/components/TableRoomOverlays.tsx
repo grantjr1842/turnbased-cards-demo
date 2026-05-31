@@ -17,6 +17,7 @@ interface TableRoomOverlaysProps {
   tutorial: TutorialCard | null;
   tutorialStep: number;
   tutorialCount: number;
+  tutorialDialogRef: RefObject<HTMLElement | null>;
   onCloseTutorial: () => void;
   onAdvanceTutorial: () => void;
   turnBanner: TurnBanner | null;
@@ -38,6 +39,7 @@ export function TableRoomOverlays({
   tutorial,
   tutorialStep,
   tutorialCount,
+  tutorialDialogRef,
   onCloseTutorial,
   onAdvanceTutorial,
   turnBanner,
@@ -66,6 +68,7 @@ export function TableRoomOverlays({
           tutorial={tutorial}
           tutorialStep={tutorialStep}
           tutorialCount={tutorialCount}
+          tutorialDialogRef={tutorialDialogRef}
           onCloseTutorial={onCloseTutorial}
           onAdvanceTutorial={onAdvanceTutorial}
         />

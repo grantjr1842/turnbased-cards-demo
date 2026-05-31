@@ -69,6 +69,7 @@ export function TableRoom(props: TableRoomProps) {
     chatLogRef,
     rulesDialogRef,
     wildDialogRef,
+    tutorialDialogRef,
     hand,
     handCount,
     handMid,
@@ -262,6 +263,7 @@ export function TableRoom(props: TableRoomProps) {
             setTutorialStep((step) => step + 1);
           }
         }}
+        tutorialDialogRef={tutorialDialogRef}
         turnBanner={turnBanner}
         showReverseSweep={showReverseSweep}
         direction={state?.direction}

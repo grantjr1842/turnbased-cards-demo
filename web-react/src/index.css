@@ -4960,8 +4960,8 @@ input:focus-visible,
 /* ── Circular Color Wheel Modal selector ──────────────────────────────── */
 .circular-color-wheel {
   position: relative;
-  width: 280px;
-  height: 280px;
+  width: clamp(208px, 72vw, 280px);
+  aspect-ratio: 1;
   margin: 20px auto;
   border-radius: 50%;
   box-shadow:
@@ -5139,6 +5139,48 @@ input:focus-visible,
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+@media (max-width: 480px) {
+  .color-modal {
+    padding: 12px;
+  }
+
+  .color-wheel-container {
+    width: min(100%, 360px);
+    padding: 18px 16px 16px;
+    gap: 12px;
+    border-radius: 22px;
+  }
+
+  .color-wheel-container h2 {
+    font-size: 18px;
+  }
+
+  .circular-color-wheel {
+    width: clamp(208px, 68vw, 248px);
+    margin: 10px auto 6px;
+  }
+
+  .color-wheel-slice {
+    font-size: 11px;
+  }
+
+  .color-wheel-slice .slice-text {
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  .color-wheel-center-nub {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+  }
+
+  .cancel-wheel-btn {
+    width: 100%;
+    min-height: 42px;
+  }
 }
 
 /* ── Vector SVG Crest Shields ─────────────────────────────────────────── */

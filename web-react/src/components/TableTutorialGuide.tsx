@@ -1,3 +1,5 @@
+import type { RefObject } from "react";
+
 export interface TutorialCard {
   eyebrow: string;
   title: string;
@@ -9,6 +11,7 @@ interface TableTutorialGuideProps {
   tutorial: TutorialCard;
   tutorialStep: number;
   tutorialCount: number;
+  tutorialDialogRef: RefObject<HTMLElement | null>;
   onCloseTutorial: () => void;
   onAdvanceTutorial: () => void;
 }
@@ -17,15 +20,19 @@ export function TableTutorialGuide({
   tutorial,
   tutorialStep,
   tutorialCount,
+  tutorialDialogRef,
   onCloseTutorial,
   onAdvanceTutorial,
 }: TableTutorialGuideProps) {
   return (
     <section
       className={`first-game-guide guide-step-${tutorialStep + 1}`}
+      ref={tutorialDialogRef}
       role="dialog"
+      aria-modal="true"
       aria-labelledby="first-game-guide-title"
       aria-describedby="first-game-guide-copy"
+      tabIndex={-1}
     >
       <div className="first-game-guide-marker" aria-hidden="true">
         <span>{tutorialStep + 1}</span>

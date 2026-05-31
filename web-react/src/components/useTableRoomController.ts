@@ -121,6 +121,7 @@ export function useTableRoomController(props: TableRoomControllerProps) {
   const chatLogRef = useRef<HTMLDivElement | null>(null);
   const rulesDialogRef = useRef<HTMLDivElement | null>(null);
   const wildDialogRef = useRef<HTMLDivElement | null>(null);
+  const tutorialDialogRef = useRef<HTMLElement | null>(null);
   const chatMessagesCount = state?.chatMessages?.length ?? 0;
   const lastChatCount = useRef(0);
   const lastIsMyTurn = useRef(false);
@@ -132,8 +133,23 @@ export function useTableRoomController(props: TableRoomControllerProps) {
   const lastPending = useRef(0);
   const localPlayerCardsPlayed = useRef(0);
 
+  const closeTutorial = useCallback(() => {
+    localStorage.setItem("uno_tutorial_complete", "true");
+    setTutorialStep(
+      getCloseTutorialSnapshot({
+        showRules,
+        tutorialStep,
+        wildFor,
+        cardAlert,
+        turnBanner,
+        showReverseSweep,
+      }).tutorialStep,
+    );
+  }, [cardAlert, showReverseSweep, showRules, tutorialStep, turnBanner, wildFor]);
+
   useDialogFocus(showRules, rulesDialogRef);
   useDialogFocus(Boolean(wildFor), wildDialogRef);
+  useDialogFocus(tutorialStep >= 0, tutorialDialogRef);
 
   const triggerFlight = useCallback(
     (card: CardSchema | null, isBack: boolean, startElId: string, endElId: string) => {
@@ -657,6 +673,12 @@ export function useTableRoomController(props: TableRoomControllerProps) {
         }
         return;
       }
+      if (tutorialStep >= 0) {
+        if (event.key === "Escape") {
+          closeTutorial();
+        }
+        return;
+      }
 
       if (key === "arrowleft") {
         setSelectedCardIdx((prev) => Math.max(0, prev - 1));
@@ -688,7 +710,20 @@ export function useTableRoomController(props: TableRoomControllerProps) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [hand, selectedCardIdx, isMyTurn, state, me, playCard, room, tableReady, showRules, wildFor]);
+  }, [
+    closeTutorial,
+    hand,
+    selectedCardIdx,
+    isMyTurn,
+    me,
+    playCard,
+    room,
+    showRules,
+    state,
+    tableReady,
+    tutorialStep,
+    wildFor,
+  ]);
 
   const scrollHand = (direction: "left" | "right") => {
     if (!handScrollRef.current) return;
@@ -737,20 +772,6 @@ export function useTableRoomController(props: TableRoomControllerProps) {
 
   const tutorialCards = getTutorialCards();
   const tutorial = tutorialStep >= 0 ? tutorialCards[tutorialStep] : null;
-  const closeTutorial = () => {
-    localStorage.setItem("uno_tutorial_complete", "true");
-    setTutorialStep(
-      getCloseTutorialSnapshot({
-        showRules,
-        tutorialStep,
-        wildFor,
-        cardAlert,
-        turnBanner,
-        showReverseSweep,
-      }).tutorialStep,
-    );
-  };
-
   return {
     me,
     players,
@@ -793,6 +814,7 @@ export function useTableRoomController(props: TableRoomControllerProps) {
     chatLogRef,
     rulesDialogRef,
     wildDialogRef,
+    tutorialDialogRef,
     hand,
     handCount,
     handMid,
