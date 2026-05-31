@@ -4066,6 +4066,8 @@ input:focus-visible,
   .game-shell {
     gap: 8px;
     padding: 4px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
   }
 
   .first-game-guide {
@@ -4109,6 +4111,8 @@ input:focus-visible,
   }
 
   .table-board {
+    grid-column: 1 / -1;
+    grid-row: 2 / 3;
     min-height: clamp(240px, 38dvh, 340px);
   }
 
@@ -4148,6 +4152,8 @@ input:focus-visible,
   }
 
   .side-panel {
+    grid-column: 1 / -1;
+    grid-row: 4 / 5;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-auto-flow: row dense;
@@ -4200,6 +4206,8 @@ input:focus-visible,
   }
 
   .hand-dock {
+    grid-column: 1 / -1;
+    grid-row: 3 / 4;
     min-height: clamp(150px, 20dvh, 190px);
     padding: 8px 8px 8px;
     overflow-y: auto;
@@ -4229,12 +4237,18 @@ input:focus-visible,
     width: clamp(64px, 18vw, 72px);
     height: clamp(100px, 26vw, 114px);
   }
+
+  .chat-panel {
+    grid-column: 1 / -1;
+    grid-row: 5 / 6;
+  }
 }
 
 @media (max-width: 420px) {
   .game-shell {
     gap: 6px;
     padding: 0;
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
   }
 
   .lobby-shell {
@@ -4300,6 +4314,8 @@ input:focus-visible,
   }
 
   .table-board {
+    grid-column: 1 / -1;
+    grid-row: 2 / 3;
     min-height: clamp(200px, 32dvh, 280px);
   }
 
@@ -4314,11 +4330,15 @@ input:focus-visible,
   }
 
   .side-panel {
+    grid-column: 1 / -1;
+    grid-row: 4 / 5;
     gap: 8px;
     max-height: clamp(128px, 17dvh, 176px);
   }
 
   .hand-dock {
+    grid-column: 1 / -1;
+    grid-row: 3 / 4;
     min-height: clamp(120px, 15dvh, 154px);
   }
 
@@ -4330,6 +4350,11 @@ input:focus-visible,
   .hand-card-wrapper {
     width: clamp(56px, 15vw, 64px);
     height: clamp(86px, 20vw, 100px);
+  }
+
+  .chat-panel {
+    grid-column: 1 / -1;
+    grid-row: 5 / 6;
   }
 }
 
