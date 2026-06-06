@@ -1,18 +1,46 @@
 import { Room, Client } from "@colyseus/core";
 import { StateView, ArraySchema } from "@colyseus/schema";
-import { UnoRoomState, PlayerSchema, UnoCardSchema, ChatMessageSchema } from "./schema/UnoRoomState.ts";
 import {
-  UnoCard, UnoColor, UnoValue, WildType,
-  createUnoDeck, shuffleDeck, canPlay,
-  pickBestCardSchema, pickBestColorSchema,
-  hasWildDrawFourAlternative, isUnoColor,
-} from "../../shared/uno.ts";
-import { HUMAN_TURN_TIMEOUT_MS, BOT_TURN_DELAY_MS, ACTION_COOLDOWN_MS } from "../../shared/constants.ts";
-import { NUM_PLAYERS, HAND_SIZE } from "../../shared/uno.ts";
+  UnoRoomState,
+  PlayerSchema,
+  UnoCardSchema,
+  ChatMessageSchema,
+} from "./schema/UnoRoomState.ts";
+import { AVATAR_SYMBOLS_BY_ID, AVATAR_THEMES_BY_ID } from "@repo/shared/avatar";
+import {
+  ACTION_COOLDOWN_MS,
+  BOT_TURN_DELAY_MS,
+  HAND_SIZE,
+  HUMAN_TURN_TIMEOUT_MS,
+  NUM_PLAYERS,
+  UnoCard,
+  UnoColor,
+  canPlaySchema,
+  createUnoDeck,
+  getPlayableCardIndices,
+  hasWildDrawFourAlternative,
+  pickBestCardSchema,
+  pickBestColorSchema,
+  recycleDiscardPile,
+  schemaCardToUnoCard,
+  shuffleDeck,
+  writeSchemaCardFields,
+} from "@repo/server-game";
 import { logger } from "../logger.ts";
 import DOMPurify from "dompurify";
 
 const VALID_COLORS: readonly UnoColor[] = ["red", "blue", "green", "yellow"];
+const DEFAULT_HUMAN_TURN_TIMEOUT = HUMAN_TURN_TIMEOUT_MS;
+const DEFAULT_BOT_TURN_DELAY = BOT_TURN_DELAY_MS;
+
+function parsePositiveDelay(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function sanitizeText(value: string): string {
+  return typeof DOMPurify.sanitize === "function" ? DOMPurify.sanitize(value) : value;
+}
 
 type RoomState = InstanceType<typeof UnoRoomState>;
 type PlayerInstance = InstanceType<typeof PlayerSchema>;
@@ -25,25 +53,37 @@ export class UnoRoom extends Room<{ state: RoomState }> {
   private seatsHandedToBot = new Set<number>();
   /** Pending botTurn timeouts keyed by seatIndex — used to cancel on rejoin. */
   private turnCallbacks = new Map<number, ReturnType<typeof setTimeout>>();
+  /** Connected human clients keyed by sessionId for O(1) lookup. */
+  private clientsBySessionId = new Map<string, Client>();
+  /** Players keyed by sessionId for O(1) lookup. */
+  private playersBySessionId = new Map<string, PlayerInstance>();
   /** Clients watching as spectators (no seat). */
   private spectators = new Set<Client>();
   /** Guard flag: prevents botTurn from firing during an active human turn action. */
   private turnActionActive = false;
   /** Rate limiting: sessionId → timestamp of last game action (ms). */
   private lastActionTime = new Map<string, number>();
+  /** Rematch votes keyed by seat index for O(1) membership checks. */
+  private rematchVoteSeats = new Set<number>();
   /** Bot difficulty: "easy" | "medium" | "hard" */
   private difficulty: "easy" | "medium" | "hard" = "medium";
   /** Optional room password. */
   private password?: string;
   /** Card counting: tracks how many cards of each color/value have been discarded */
   private discardedCounts: Record<string, number> = {};
+  /** Monotonic chat message sequence for unique message ids. */
+  private chatMessageSeq = 0;
 
   onCreate(options: { private?: boolean; difficulty?: string; password?: string } = {}) {
     try {
       // Spectators don't count toward maxClients — they can always join
       this.maxClients = 256;
       if (options.private) this.setPrivate();
-      if (options.password && typeof options.password === "string" && options.password.length <= 32) {
+      if (
+        options.password &&
+        typeof options.password === "string" &&
+        options.password.length <= 32
+      ) {
         this.password = options.password;
       }
       if (options.difficulty === "easy" || options.difficulty === "hard") {
@@ -56,6 +96,7 @@ export class UnoRoom extends Room<{ state: RoomState }> {
       this.state.direction = 1;
       this.state.spectatorCount = 0;
       this.state.chatMessages = new ArraySchema();
+      this.chatMessageSeq = 0;
       this.state.unoCaller = -1;
       this.state.rematchVotes = new ArraySchema();
 
@@ -69,6 +110,7 @@ export class UnoRoom extends Room<{ state: RoomState }> {
         player.connected = false;
         player.handCount = 0;
         this.state.players.set(String(i), player);
+        this.playersBySessionId.set(player.sessionId, player);
       }
 
       // Deal and start
@@ -79,9 +121,12 @@ export class UnoRoom extends Room<{ state: RoomState }> {
       logger.info("UnoRoom", "Game started", { roomId: this.roomId });
 
       // Message handlers
-      this.onMessage("play_card", (client: Client, message: { cardId: string; chosenColor?: string }) => {
-        this.handlePlayCard(client, message);
-      });
+      this.onMessage(
+        "play_card",
+        (client: Client, message: { cardId: string; chosenColor?: string }) => {
+          this.handlePlayCard(client, message);
+        },
+      );
 
       this.onMessage("draw_card", (client: Client) => {
         this.handleDrawCard(client);
@@ -143,28 +188,32 @@ export class UnoRoom extends Room<{ state: RoomState }> {
       }
 
       // Replace bot with human (keep hand intact)
+      this.playersBySessionId.delete(botPlayer.sessionId);
       botPlayer.sessionId = client.sessionId;
-      
+
       let name = "Player";
       if (typeof options?.name === "string") {
         const trimmed = options.name.trim();
-        const match = trimmed.match(/^\[av-([a-z0-9]+)-([a-z0-9]+)\](.*)$/);
+        const sanitized = sanitizeText(trimmed).trim();
+        const match = sanitized.match(/^\[av-([a-z0-9]+)-([a-z0-9]+)\](.*)$/);
         if (match) {
           const symbol = match[1];
           const theme = match[2];
           const actualName = match[3].trim();
-          const validSymbol = ["tiger", "dragon", "phoenix", "panda", "wolf", "owl", "fox", "shark"].includes(symbol);
-          const validTheme = ["rose", "sapphire", "aurora", "sol", "nebula"].includes(theme);
+          const validSymbol = AVATAR_SYMBOLS_BY_ID.has(symbol);
+          const validTheme = AVATAR_THEMES_BY_ID.has(theme);
           if (validSymbol && validTheme && actualName.length >= 2 && actualName.length <= 16) {
-            name = trimmed;
+            name = sanitized;
           }
-        } else if (trimmed.length >= 2 && trimmed.length <= 16) {
-          name = trimmed;
+        } else if (sanitized.length >= 2 && sanitized.length <= 16) {
+          name = sanitized;
         }
       }
-      botPlayer.name = typeof DOMPurify.sanitize === 'function' ? DOMPurify.sanitize(name) : name;
+      botPlayer.name = sanitizeText(name);
       botPlayer.isBot = false;
       botPlayer.connected = true;
+      this.playersBySessionId.set(client.sessionId, botPlayer);
+      this.clientsBySessionId.set(client.sessionId, client);
 
       // Set up StateView — player can see their own hand
       client.view = new StateView();
@@ -211,16 +260,19 @@ export class UnoRoom extends Room<{ state: RoomState }> {
         return;
       }
 
-      const player = this.findPlayerBySession(client.sessionId);
+      this.clientsBySessionId.delete(client.sessionId);
+      const player = this.playersBySessionId.get(client.sessionId);
       if (!player) return;
 
       const wasCurrentPlayer = this.state.currentPlayer === player.seatIndex;
 
       // Convert back to bot
+      this.playersBySessionId.delete(client.sessionId);
       player.sessionId = `bot-${player.seatIndex}`;
       player.name = `Bot ${player.seatIndex + 1}`;
       player.isBot = true;
       player.connected = false;
+      this.playersBySessionId.set(player.sessionId, player);
 
       // Unlock so others can join
       this.unlock();
@@ -250,11 +302,8 @@ export class UnoRoom extends Room<{ state: RoomState }> {
   }
 
   onDispose() {
-    clearTimeout(this.turnTimeout);
-    for (const timeout of this.turnCallbacks.values()) {
-      clearTimeout(timeout);
-    }
-    this.turnCallbacks.clear();
+    this.resetTurnBookkeeping();
+    this.resetPlayerLookupCaches();
   }
 
   // ── Helpers ───────────────────────────────────────────────────
@@ -277,10 +326,16 @@ export class UnoRoom extends Room<{ state: RoomState }> {
   }
 
   private findPlayerBySession(sessionId: string): PlayerInstance | null {
+    const cached = this.playersBySessionId.get(sessionId);
+    if (cached) return cached;
+
     let found: PlayerInstance | null = null;
-    this.state.players.forEach((p: PlayerInstance) => {
-      if (p.sessionId === sessionId) found = p;
+    this.state.players.forEach((player: PlayerInstance) => {
+      if (player.sessionId === sessionId) found = player;
     });
+    if (found) {
+      this.playersBySessionId.set(sessionId, found);
+    }
     return found;
   }
 
@@ -291,15 +346,66 @@ export class UnoRoom extends Room<{ state: RoomState }> {
   private nextPlayer(skip = 0): number {
     let p = this.state.currentPlayer;
     for (let i = 0; i <= skip; i++) {
-      p = ((p + this.state.direction) % NUM_PLAYERS + NUM_PLAYERS) % NUM_PLAYERS;
+      p = (((p + this.state.direction) % NUM_PLAYERS) + NUM_PLAYERS) % NUM_PLAYERS;
     }
     return p;
+  }
+
+  private clearTurnTimeout() {
+    clearTimeout(this.turnTimeout);
+    this.turnTimeout = undefined;
+    this.state.turnDeadline = 0;
+  }
+
+  private resetTurnBookkeeping() {
+    this.clearTurnTimeout();
+    for (const timeout of this.turnCallbacks.values()) {
+      clearTimeout(timeout);
+    }
+    this.turnCallbacks.clear();
+    this.lastActionTime.clear();
+    this.seatsHandedToBot.clear();
+    this.clearRematchVotes();
+  }
+
+  private resetPlayerLookupCaches() {
+    this.clientsBySessionId.clear();
+    this.playersBySessionId.clear();
+  }
+
+  private clearRematchVotes() {
+    this.state.rematchVotes.splice(0, this.state.rematchVotes.length);
+    this.rematchVoteSeats.clear();
+  }
+
+  private getConnectedHumanSeats(): number[] {
+    const connectedHumanSeats: number[] = [];
+    this.state.players.forEach((player: PlayerInstance) => {
+      if (!player.isBot && player.connected) {
+        connectedHumanSeats.push(player.seatIndex);
+      }
+    });
+    return connectedHumanSeats;
+  }
+
+  private getPlayableCardIndicesForPlayer(player: PlayerInstance): number[] {
+    const topDiscard = this.state.discardPile[this.state.discardPile.length - 1];
+    if (!topDiscard) return [];
+
+    return getPlayableCardIndices(
+      player.hand,
+      topDiscard,
+      this.state.activeColor as UnoColor,
+      this.state.pendingDraw,
+      canPlaySchema,
+      hasWildDrawFourAlternative,
+    );
   }
 
   /** Find the Client for a human player (by sessionId). */
   private getClientForPlayer(player: PlayerInstance): Client | undefined {
     if (player.isBot) return undefined;
-    return this.clients.find((c: Client) => c.sessionId === player.sessionId);
+    return this.clientsBySessionId.get(player.sessionId);
   }
 
   /**
@@ -320,55 +426,7 @@ export class UnoRoom extends Room<{ state: RoomState }> {
 
   private createCardSchema(card: UnoCard): CardInstance {
     const c = new UnoCardSchema();
-    c.id = card.id;
-    if (card.type === "color") {
-      c.cardType = "color";
-      c.color = card.color;
-      c.value = card.value;
-      c.chosenColor = "";
-    } else {
-      c.cardType = "wild";
-      c.color = "";
-      c.value = card.wildType;
-      c.chosenColor = card.chosenColor || "";
-    }
-    return c;
-  }
-
-  private toPlainCard(schema: CardInstance): UnoCard {
-    if (schema.cardType === "color") {
-      return {
-        type: "color",
-        color: schema.color as UnoColor,
-        value: schema.value as UnoValue,
-        id: schema.id,
-      };
-    } else {
-      return {
-        type: "wild",
-        wildType: schema.value as WildType,
-        chosenColor: (schema.chosenColor || null) as UnoColor | null,
-        id: schema.id,
-      };
-    }
-  }
-
-  private playerCanAct(): boolean {
-    const player = this.getPlayerBySeat(this.state.currentPlayer);
-    const topDiscard = this.state.discardPile[this.state.discardPile.length - 1];
-    if (!topDiscard) return false;
-    for (let i = 0; i < player.hand.length; i++) {
-      const card = player.hand[i];
-      if (!canPlay(card, topDiscard, this.state.activeColor as UnoColor, this.state.pendingDraw)) continue;
-      // Enforce Wild Draw Four rule: wild_draw4 may only be played if no alternative exists
-      if (card.cardType === "wild" && card.value === "wild_draw4") {
-        if (hasWildDrawFourAlternative(player.hand as unknown as { cardType: string; color: string; value: string }[], topDiscard, this.state.activeColor)) {
-          continue; // Has valid alternative — cannot play wild_draw4
-        }
-      }
-      return true;
-    }
-    return false;
+    return writeSchemaCardFields(c, card);
   }
 
   // ── Game Logic ────────────────────────────────────────────────
@@ -422,25 +480,26 @@ export class UnoRoom extends Room<{ state: RoomState }> {
 
     this.state.currentPlayer = currentPlayer;
     this.state.direction = direction;
-    this.state.pendingDraw =
-      firstCard.type === "color" && firstCard.value === "draw2" ? 2 : 0;
+    this.state.pendingDraw = firstCard.type === "color" && firstCard.value === "draw2" ? 2 : 0;
     this.state.winner = -1;
   }
 
   private scheduleTurn() {
-    clearTimeout(this.turnTimeout);
+    this.clearTurnTimeout();
 
     if (this.state.phase !== "playing" || this.state.winner !== -1) return;
 
-    const player = this.getPlayerBySeat(this.state.currentPlayer);
-    const canAct = this.playerCanAct();
-    const timeout = Number(process.env.HUMAN_TURN_TIMEOUT) || HUMAN_TURN_TIMEOUT_MS;
-    const botDelay = Number(process.env.BOT_TURN_DELAY) || BOT_TURN_DELAY_MS;
-    const delay = (!canAct || player.isBot) ? botDelay : timeout;
+    const seatIndex = this.state.currentPlayer;
+    const player = this.getPlayerBySeat(seatIndex);
+    const timeout = parsePositiveDelay(process.env.HUMAN_TURN_TIMEOUT, DEFAULT_HUMAN_TURN_TIMEOUT);
+    const botDelay = parsePositiveDelay(process.env.BOT_TURN_DELAY, DEFAULT_BOT_TURN_DELAY);
+    const delay = player.isBot ? botDelay : timeout;
 
     this.state.turnDeadline = Date.now() + delay;
 
     this.turnTimeout = setTimeout(() => {
+      this.clearTurnTimeout();
+      this.turnCallbacks.delete(seatIndex);
       try {
         this.botTurn();
       } catch (err) {
@@ -450,24 +509,10 @@ export class UnoRoom extends Room<{ state: RoomState }> {
   }
 
   private recycleDiscardIfNeeded() {
-    if (this.drawPile.length > 0) return;
-
-    const discardLen = this.state.discardPile.length;
-    if (discardLen <= 1) return;
-
-    // Remove all but the last card (top of discard)
-    const removed = this.state.discardPile.splice(0, discardLen - 1);
-
-    // Convert to plain cards and shuffle
-    const recycled: UnoCard[] = [];
-    for (let i = 0; i < removed.length; i++) {
-      recycled.push(this.toPlainCard(removed[i]));
-    }
-    for (let i = recycled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [recycled[i], recycled[j]] = [recycled[j], recycled[i]];
-    }
-
+    const recycled = recycleDiscardPile(this.drawPile, this.state.discardPile, (card) =>
+      schemaCardToUnoCard(card),
+    );
+    if (!recycled) return;
     this.drawPile = recycled;
     this.state.drawPileCount = this.drawPile.length;
   }
@@ -489,72 +534,75 @@ export class UnoRoom extends Room<{ state: RoomState }> {
     }
   }
 
-  private executePlayCard(
-    player: PlayerInstance,
-    cardIndex: number,
-    chosenColor?: UnoColor,
-  ) {
+  private executePlayCard(player: PlayerInstance, cardIndex: number, chosenColor?: UnoColor) {
     this.turnActionActive = true;
     try {
-    const card = player.hand[cardIndex];
+      const card = player.hand[cardIndex];
 
-    // Clone card data for discard pile
-    const discardCard = new UnoCardSchema();
-    discardCard.id = card.id;
-    discardCard.cardType = card.cardType;
-    discardCard.color = card.color;
-    discardCard.value = card.value;
+      // Clone card data for discard pile
+      const discardCard = new UnoCardSchema();
+      discardCard.id = card.id;
+      discardCard.cardType = card.cardType;
+      discardCard.color = card.color;
+      discardCard.value = card.value;
 
-    // Set chosen color for wild cards
-    if (discardCard.cardType === "wild") {
-      discardCard.chosenColor = chosenColor || "red";
-      this.state.activeColor = discardCard.chosenColor;
-    } else {
-      discardCard.chosenColor = "";
-      this.state.activeColor = discardCard.color;
-    }
+      // Set chosen color for wild cards
+      if (discardCard.cardType === "wild") {
+        discardCard.chosenColor = chosenColor || "red";
+        this.state.activeColor = discardCard.chosenColor;
+      } else {
+        discardCard.chosenColor = "";
+        this.state.activeColor = discardCard.color;
+      }
 
-    // Remove from hand
-    const wasUnoCaller = this.state.unoCaller === player.seatIndex;
-    player.hand.splice(cardIndex, 1);
-    player.handCount = player.hand.length;
+      // Remove from hand
+      const wasUnoCaller = this.state.unoCaller === player.seatIndex;
+      player.hand.splice(cardIndex, 1);
+      player.handCount = player.hand.length;
 
-    // UNO penalty: if this player was supposed to call UNO but didn't
-    if (wasUnoCaller) {
-      this.drawCards(player, 2);
-      this.state.unoCaller = -1;
-    }
+      // UNO penalty: if this player was supposed to call UNO but didn't
+      if (wasUnoCaller) {
+        this.drawCards(player, 2);
+        this.state.unoCaller = -1;
+      }
 
-    // Mark player as needing to call UNO when they reach 1 card
-    // Bots auto-call UNO (clear immediately), humans must send "uno" message
-    if (player.hand.length === 1) {
-      this.state.unoCaller = player.isBot ? -1 : player.seatIndex;
-    }
+      // Mark player as needing to call UNO when they reach 1 card
+      // Bots auto-call UNO (clear immediately), humans must send "uno" message
+      if (player.hand.length === 1) {
+        this.state.unoCaller = player.isBot ? -1 : player.seatIndex;
+      }
 
-    // Add to discard pile
-    this.state.discardPile.push(discardCard);
+      // Add to discard pile
+      this.state.discardPile.push(discardCard);
 
-    // Track discarded cards for card counting (hard difficulty)
-    const countKey = discardCard.cardType === "color" ? discardCard.color : discardCard.value;
-    this.discardedCounts[countKey] = (this.discardedCounts[countKey] || 0) + 1;
+      // Track discarded cards for card counting (hard difficulty)
+      const countKey = discardCard.cardType === "color" ? discardCard.color : discardCard.value;
+      this.discardedCounts[countKey] = (this.discardedCounts[countKey] || 0) + 1;
 
-    // Check win
-    if (player.hand.length === 0) {
-      this.state.winner = player.seatIndex;
-      logger.info("UnoRoom", "Game finished", {
-        winnerSeat: player.seatIndex,
-        winnerName: player.name,
-        seatIndex: player.seatIndex,
-      });
-      this.state.phase = "finished";
-      this.state.rematchVotes.splice(0, this.state.rematchVotes.length);
-      clearTimeout(this.turnTimeout);
-      // Reset flag before the finally runs
+      // Check win
+      if (player.hand.length === 0) {
+        this.state.winner = player.seatIndex;
+        logger.info("UnoRoom", "Game finished", {
+          winnerSeat: player.seatIndex,
+          winnerName: player.name,
+          seatIndex: player.seatIndex,
+        });
+        this.state.phase = "finished";
+        this.clearRematchVotes();
+        clearTimeout(this.turnTimeout);
+        // Reset flag before the finally runs
+        this.turnActionActive = false;
+        return;
+      }
+
+      this.applyPlayedCardEffects(discardCard);
+      this.scheduleTurn();
+    } finally {
       this.turnActionActive = false;
-      return;
     }
+  }
 
-    // Apply effects
+  private applyPlayedCardEffects(discardCard: CardInstance) {
     if (discardCard.cardType === "color") {
       switch (discardCard.value) {
         case "reverse":
@@ -571,17 +619,13 @@ export class UnoRoom extends Room<{ state: RoomState }> {
         default:
           this.state.currentPlayer = this.nextPlayer();
       }
-    } else {
-      if (discardCard.value === "wild_draw4") {
-        this.state.pendingDraw += 4;
-      }
-      this.state.currentPlayer = this.nextPlayer();
+      return;
     }
 
-    this.scheduleTurn();
-    } finally {
-      this.turnActionActive = false;
+    if (discardCard.value === "wild_draw4") {
+      this.state.pendingDraw += 4;
     }
+    this.state.currentPlayer = this.nextPlayer();
   }
 
   private botTurn() {
@@ -601,20 +645,7 @@ export class UnoRoom extends Room<{ state: RoomState }> {
     }
 
     // Find playable cards
-    const topDiscard = this.state.discardPile[this.state.discardPile.length - 1];
-    const playable: number[] = [];
-    for (let i = 0; i < player.hand.length; i++) {
-      const card = player.hand[i];
-      if (canPlay(card, topDiscard, this.state.activeColor as UnoColor, this.state.pendingDraw)) {
-        // Enforce Wild Draw Four rule: wild_draw4 may only be played if no alternative exists
-        if (card.cardType === "wild" && card.value === "wild_draw4") {
-          if (hasWildDrawFourAlternative(player.hand as unknown as { cardType: string; color: string; value: string }[], topDiscard, this.state.activeColor)) {
-            continue; // Has valid alternative — cannot play wild_draw4
-          }
-        }
-        playable.push(i);
-      }
-    }
+    const playable = this.getPlayableCardIndicesForPlayer(player);
 
     if (playable.length === 0) {
       // Draw 1 card, skip turn
@@ -624,6 +655,9 @@ export class UnoRoom extends Room<{ state: RoomState }> {
       return;
     }
 
+    const topDiscard = this.state.discardPile[this.state.discardPile.length - 1];
+    if (!topDiscard) return;
+
     // Pick card based on difficulty
     let cardIndex: number;
     if (this.difficulty === "easy") {
@@ -631,8 +665,7 @@ export class UnoRoom extends Room<{ state: RoomState }> {
       cardIndex = playable[Math.floor(Math.random() * playable.length)];
     } else {
       // Medium / Hard: strategic card selection
-      const topCardValue = topDiscard.cardType === "color" ? topDiscard.value : undefined;
-      cardIndex = pickBestCardSchema(playable, player.hand as unknown as { cardType: string; color: string; value: string; id: string }[], this.state.activeColor as UnoColor);
+      cardIndex = pickBestCardSchema(playable, player.hand, this.state.activeColor as UnoColor);
     }
     const card = player.hand[cardIndex];
 
@@ -645,7 +678,7 @@ export class UnoRoom extends Room<{ state: RoomState }> {
       } else {
         // Medium and hard use strategic selection; hard additionally considers card depletion
         chosenColor = pickBestColorSchema(
-          player.hand as unknown as { cardType: string; color: string; value: string }[],
+          player.hand,
           topDiscard.cardType === "color" ? topDiscard.value : undefined,
           this.difficulty === "hard" ? this.discardedCounts : undefined,
         );
@@ -657,10 +690,7 @@ export class UnoRoom extends Room<{ state: RoomState }> {
 
   // ── Message Handlers ──────────────────────────────────────────
 
-  private handlePlayCard(
-    client: Client,
-    message: { cardId: string; chosenColor?: string },
-  ) {
+  private handlePlayCard(client: Client, message: { cardId: string; chosenColor?: string }) {
     try {
       const { cardId, chosenColor } = message;
 
@@ -686,7 +716,6 @@ export class UnoRoom extends Room<{ state: RoomState }> {
         return;
       }
 
-
       // Validate chosenColor
       if (chosenColor !== undefined && !VALID_COLORS.includes(chosenColor as UnoColor)) {
         client.send("error", { message: "Invalid color", code: "INVALID_COLOR" });
@@ -708,17 +737,20 @@ export class UnoRoom extends Room<{ state: RoomState }> {
 
       const card = player.hand[cardIndex];
       const topDiscard = this.state.discardPile[this.state.discardPile.length - 1];
-
-      // Validate playability
-      if (!canPlay(card, topDiscard, this.state.activeColor as UnoColor, this.state.pendingDraw)) {
+      if (!topDiscard) {
         client.send("error", { message: "Card cannot be played", code: "CANNOT_PLAY" });
         return;
       }
-
-      // Wild Draw Four rule: player may only play wild_draw4 if they have NO valid alternatives.
-      if (card.cardType === "wild" && card.value === "wild_draw4") {
-        if (this.state.pendingDraw === 0 && hasWildDrawFourAlternative(player.hand as unknown as { cardType: string; color: string; value: string }[], topDiscard, this.state.activeColor)) {
-          client.send("error", { message: "Cannot play Wild Draw 4 — you have a valid alternative", code: "WILDDRAW4_VIOLATION" });
+      if (!canPlaySchema(card, topDiscard, this.state.activeColor, this.state.pendingDraw)) {
+        client.send("error", { message: "Card cannot be played", code: "CANNOT_PLAY" });
+        return;
+      }
+      if (card.cardType === "wild" && card.value === "wild_draw4" && this.state.pendingDraw === 0) {
+        if (hasWildDrawFourAlternative(player.hand, topDiscard, this.state.activeColor)) {
+          client.send("error", {
+            message: "Cannot play Wild Draw 4 — you have a valid alternative",
+            code: "WILDDRAW4_VIOLATION",
+          });
           return;
         }
       }
@@ -766,15 +798,10 @@ export class UnoRoom extends Room<{ state: RoomState }> {
     if (!player) return;
     // Only allow restart when game is finished, or during play if all bots (dev mode)
     if (this.state.phase !== "finished") {
-      let hasConnectedHuman = false;
-      this.state.players.forEach((p: PlayerInstance) => {
-        if (!p.isBot && p.connected) hasConnectedHuman = true;
-      });
-      if (hasConnectedHuman) return;
+      if (this.getConnectedHumanSeats().length > 0) return;
     }
 
-    clearTimeout(this.turnTimeout);
-    this.seatsHandedToBot.clear();
+    this.resetTurnBookkeeping();
 
     // Clear all hands and discard pile
     this.state.players.forEach((player: PlayerInstance) => {
@@ -784,7 +811,6 @@ export class UnoRoom extends Room<{ state: RoomState }> {
     this.state.discardPile.splice(0, this.state.discardPile.length);
     this.discardedCounts = {};
     this.state.unoCaller = -1;
-    this.state.rematchVotes.splice(0, this.state.rematchVotes.length);
     // Re-deal
     this.dealGame();
     this.state.phase = "playing";
@@ -804,10 +830,10 @@ export class UnoRoom extends Room<{ state: RoomState }> {
 
     const text = typeof message.text === "string" ? message.text.trim() : "";
     if (!text || text.length > 200) return;
-    const sanitized = (raw: string) => typeof DOMPurify.sanitize === 'function' ? DOMPurify.sanitize(raw) : raw;
     const chatMsg = new ChatMessageSchema();
-    chatMsg.sender = sanitized(senderName);
-    chatMsg.text = sanitized(text);
+    chatMsg.id = `${Date.now()}-${this.chatMessageSeq++}`;
+    chatMsg.sender = sanitizeText(senderName);
+    chatMsg.text = sanitizeText(text);
     chatMsg.timestamp = Date.now();
     this.state.chatMessages.push(chatMsg);
     // Keep last 50 messages
@@ -833,25 +859,33 @@ export class UnoRoom extends Room<{ state: RoomState }> {
     if (!player.connected) return;
 
     // Add vote if not already present
-    const alreadyVoted = this.state.rematchVotes.includes(player.seatIndex);
-    if (!alreadyVoted) {
-      this.state.rematchVotes.push(player.seatIndex);
-    }
+    this.addRematchVote(player.seatIndex);
 
     // Check if all connected humans have voted
-    const connectedHumanSeats: number[] = [];
-    this.state.players.forEach((p: PlayerInstance) => {
-      if (!p.isBot && p.connected) {
-        connectedHumanSeats.push(p.seatIndex);
-      }
-    });
-
-    const allVoted = connectedHumanSeats.length > 0 &&
-      connectedHumanSeats.every((seat) => this.state.rematchVotes.includes(seat));
+    const connectedHumanSeats = this.getConnectedHumanSeats();
+    const allVoted =
+      connectedHumanSeats.length > 0 &&
+      connectedHumanSeats.every((seat) => this.hasRematchVote(seat));
 
     if (allVoted) {
-      this.state.rematchVotes.splice(0, this.state.rematchVotes.length);
+      this.clearRematchVotes();
       this.handleRestart(client);
     }
+  }
+
+  private hasRematchVote(seatIndex: number): boolean {
+    const voted = this.state.rematchVotes.includes(seatIndex);
+    if (voted) {
+      this.rematchVoteSeats.add(seatIndex);
+    } else {
+      this.rematchVoteSeats.delete(seatIndex);
+    }
+    return voted;
+  }
+
+  private addRematchVote(seatIndex: number): void {
+    if (this.hasRematchVote(seatIndex)) return;
+    this.rematchVoteSeats.add(seatIndex);
+    this.state.rematchVotes.push(seatIndex);
   }
 }

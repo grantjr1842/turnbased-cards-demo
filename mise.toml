@@ -1,0 +1,11 @@
+[tools]
+# Pin Node and pnpm for every workspace in this monorepo.
+# `pnpm` here is provided by the mise "core:pnpm" plugin (npm backend),
+# so it is a separate install from any system or corepack copy.
+node = "22.22.0"
+pnpm = "11.5.2"
+
+[env]
+# Tells corepack to honor the packageManager field in package.json
+# (and to refuse versions that don't match). See web-react/package.json.
+COREPACK_ENABLE_STRICT = "1"

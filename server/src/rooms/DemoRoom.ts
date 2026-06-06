@@ -1,4 +1,4 @@
-import { Room, Client } from "@colyseus/core";
+import { Room, Client } from "colyseus";
 import { ArraySchema } from "@colyseus/schema";
 import {
   DemoState,
@@ -8,20 +8,27 @@ import {
   TurnHistoryEntrySchema,
 } from "./schema/DemoState.ts";
 import {
+  HAND_SIZE,
+  NUM_PLAYERS,
   UnoCard,
   UnoColor,
+  canPlay,
   createUnoDeck,
-  shuffleDeck,
   getPlayableCards,
-  NUM_PLAYERS,
-  HAND_SIZE,
-} from "../../shared/uno.ts";
+  pickBestCard,
+  pickBestColor,
+  recycleDiscardPile,
+  shuffleDeck,
+  writeSchemaCardFields,
+} from "@repo/server-game";
 import { logger } from "../logger.ts";
 
 export class DemoRoom extends Room<{ state: InstanceType<typeof DemoState> }> {
-  private drawPile: UnoCard[] = [];
   private tickTimer?: ReturnType<typeof setTimeout>;
+  private disposed = false;
+  private gameStarted = false;
   private currentState!: {
+    drawPile: UnoCard[];
     hands: UnoCard[][];
     discardPile: UnoCard[];
     currentPlayer: number;
@@ -67,8 +74,7 @@ export class DemoRoom extends Room<{ state: InstanceType<typeof DemoState> }> {
       this.stepOnce();
     });
     this.onMessage("set_speed", (_client: Client, message: { tickMs: number }) => {
-      this.tickMs = Math.max(100, Math.min(10000, message.tickMs));
-      this.state.demo.tickMs = this.tickMs;
+      this.setTickSpeed(message.tickMs);
     });
 
     logger.info("DemoRoom", "Created");
@@ -91,7 +97,27 @@ export class DemoRoom extends Room<{ state: InstanceType<typeof DemoState> }> {
     logger.info("DemoRoom", "Client left", { sessionId: client.sessionId });
   }
 
+  onDispose() {
+    this.disposed = true;
+    this.gameStarted = false;
+    this.clearTickTimer();
+  }
+
+  private clearTickTimer() {
+    clearTimeout(this.tickTimer);
+    this.tickTimer = undefined;
+  }
+
+  private setTickSpeed(rawTickMs: unknown) {
+    const tickMs = Number(rawTickMs);
+    if (!Number.isFinite(tickMs) || tickMs <= 0) return;
+    this.tickMs = Math.max(100, Math.min(10000, tickMs));
+    this.state.demo.tickMs = this.tickMs;
+  }
+
   private startGame() {
+    if (this.disposed) return;
+    this.gameStarted = true;
     this.paused = false;
     this.state.demo.phase = "running";
     this.state.demo.turnCount = 0;
@@ -101,6 +127,7 @@ export class DemoRoom extends Room<{ state: InstanceType<typeof DemoState> }> {
     // Initialize game state
     const deck = shuffleDeck(createUnoDeck());
     this.currentState = {
+      drawPile: [],
       hands: Array.from({ length: NUM_PLAYERS }, () => [] as UnoCard[]),
       discardPile: [],
       currentPlayer: 0,
@@ -124,8 +151,9 @@ export class DemoRoom extends Room<{ state: InstanceType<typeof DemoState> }> {
     if (startIdx >= deck.length) startIdx = deckIdx;
     const firstCard = deck[startIdx];
     const remaining = [...deck.slice(deckIdx, startIdx), ...deck.slice(startIdx + 1)];
+    this.currentState.drawPile = remaining;
+
     this.currentState.discardPile.push(firstCard);
-    this.drawPile = remaining;
     this.currentState.activeColor = firstCard.type === "color" ? firstCard.color : "red";
     this.currentState.direction = 1;
     this.currentState.currentPlayer = 0;
@@ -143,39 +171,44 @@ export class DemoRoom extends Room<{ state: InstanceType<typeof DemoState> }> {
 
     // Sync initial state
     this.syncState();
-    this.recordHistory("start", "", "");
+    this.recordHistory(this.currentState.currentPlayer, "start", "", "");
     this.scheduleTick();
     logger.info("DemoRoom", "Game started");
   }
 
   private pauseGame() {
+    if (this.disposed || !this.gameStarted) return;
     this.paused = true;
     this.state.demo.phase = "paused";
-    clearTimeout(this.tickTimer);
+    this.clearTickTimer();
   }
 
   private resumeGame() {
+    if (this.disposed || !this.gameStarted || this.currentState.winner !== null) return;
     this.paused = false;
     this.state.demo.phase = "running";
     this.scheduleTick();
   }
 
   private stepOnce() {
-    if (this.paused) {
+    if (!this.disposed && this.gameStarted && this.paused) {
       this.tick();
     }
   }
 
   private scheduleTick() {
+    if (this.disposed || !this.gameStarted) return;
+    this.clearTickTimer();
     this.tickTimer = setTimeout(() => {
-      if (!this.paused) {
+      if (!this.disposed && this.gameStarted && !this.paused) {
         this.tick();
-        if (!this.paused) this.scheduleTick();
+        if (!this.disposed && this.gameStarted && !this.paused) this.scheduleTick();
       }
     }, this.tickMs);
   }
 
   private tick() {
+    if (this.disposed || !this.gameStarted) return;
     if (this.currentState.winner !== null) {
       this.finishGame();
       return;
@@ -189,79 +222,40 @@ export class DemoRoom extends Room<{ state: InstanceType<typeof DemoState> }> {
       const count = this.currentState.pendingDraw;
       for (let i = 0; i < count; i++) {
         this.recycleDiscard();
-        if (this.drawPile.length === 0) break;
-        this.currentState.hands[player].push(this.drawPile.pop()!);
+        if (this.currentState.drawPile.length === 0) break;
+        this.currentState.hands[player].push(this.currentState.drawPile.pop()!);
       }
       this.currentState.pendingDraw = 0;
       this.advancePlayer();
-      this.recordHistory("draw", "", "");
+      this.recordHistory(player, "draw", "", "");
     } else {
-      const playable = getPlayableCards(
-        this.toUnoState(),
-        player,
-      );
+      const playable = getPlayableCards(this.currentState, player);
       if (playable.length === 0) {
         // Draw then play if possible, or just draw
         this.recycleDiscard();
-        if (this.drawPile.length === 0) {
+        if (this.currentState.drawPile.length === 0) {
           this.advancePlayer();
-          this.recordHistory("draw", "", "");
+          this.recordHistory(player, "draw", "", "");
         } else {
-          const drawn = this.drawPile.pop()!;
+          const drawn = this.currentState.drawPile.pop()!;
           this.currentState.hands[player].push(drawn);
-          const canPlayDrawn = playable.some(c => c.id === drawn.id) ||
-            (drawn.type === "wild") ||
-            (drawn.type === "color" && (drawn.color === this.currentState.activeColor));
+          const topCard = this.currentState.discardPile[this.currentState.discardPile.length - 1];
+          const canPlayDrawn = topCard
+            ? canPlay(drawn, topCard, this.currentState.activeColor, this.currentState.pendingDraw)
+            : false;
           if (canPlayDrawn) {
-            this.currentState.discardPile.push(drawn);
-            if (drawn.type === "wild") {
-              this.currentState.activeColor = this.pickBestColor(this.currentState.hands[player]);
-            } else {
-              this.currentState.activeColor = drawn.color;
-            }
-            this.recordHistory("play", drawn.id, this.currentState.activeColor);
+            this.playCard(player, drawn);
+            this.recordHistory(player, "play", drawn.id, this.currentState.activeColor);
           } else {
             this.advancePlayer();
-            this.recordHistory("draw", drawn.id, "");
+            this.recordHistory(player, "draw", drawn.id, "");
           }
         }
       } else {
         // AI plays best card
-        const hand = this.currentState.hands[player];
-        const card = this.pickBestCard(playable, hand, this.currentState.activeColor);
-        this.currentState.hands[player] = hand.filter(c => c.id !== card.id);
-        this.currentState.discardPile.push(card);
-        if (card.type === "wild") {
-          this.currentState.activeColor = this.pickBestColor(this.currentState.hands[player]);
-        } else {
-          this.currentState.activeColor = card.color;
-        }
-
-        // Apply card effects
-        if (card.type === "color") {
-          switch (card.value) {
-            case "reverse":
-              this.currentState.direction = (this.currentState.direction === 1 ? -1 : 1) as 1 | -1;
-              this.advancePlayer(1);
-              break;
-            case "skip":
-              this.advancePlayer(1);
-              break;
-            case "draw2":
-              this.currentState.pendingDraw += 2;
-              this.advancePlayer();
-              break;
-            default:
-              this.advancePlayer();
-          }
-        } else {
-          if (card.wildType === "wild_draw4") {
-            this.currentState.pendingDraw += 4;
-          }
-          this.advancePlayer();
-        }
-
-        this.recordHistory("play", card.id, this.currentState.activeColor);
+        const card = pickBestCard(playable, this.currentState.activeColor);
+        this.playCard(player, card);
+        this.recordHistory(player, "play", card.id, this.currentState.activeColor);
       }
     }
 
@@ -278,60 +272,67 @@ export class DemoRoom extends Room<{ state: InstanceType<typeof DemoState> }> {
     }
   }
 
-  private pickBestCard(playable: UnoCard[], _hand: UnoCard[], activeColor: UnoColor): UnoCard {
-    // Prefer action cards matching color, then number cards, then wilds
-    const colorCards = playable.filter(c => c.type === "color" && c.color === activeColor);
-    const numberCards = colorCards.filter(c => c.type === "color");
-    if (numberCards.length > 0) return numberCards[0];
-    if (colorCards.length > 0) {
-      const actions = colorCards.filter(c => c.type === "color" && (c as { value: string }).value !== "0");
-      if (actions.length > 0) return actions[0];
-      return colorCards[0];
-    }
-    const wilds = playable.filter(c => c.type === "wild");
-    return wilds[0] ?? playable[0];
-  }
-
-  private pickBestColor(hand: UnoCard[]): UnoColor {
-    const counts: Record<string, number> = { red: 0, blue: 0, green: 0, yellow: 0 };
-    for (const c of hand) {
-      if (c.type === "color") counts[c.color]++;
-    }
-    let best: UnoColor = "red";
-    let bestCount = 0;
-    for (const [color, count] of Object.entries(counts)) {
-      if (count > bestCount) { bestCount = count; best = color as UnoColor; }
-    }
-    return best;
-  }
-
   private advancePlayer(skip = 0) {
     let p = this.currentState.currentPlayer;
     for (let i = 0; i <= skip; i++) {
-      p = ((p + this.currentState.direction) % NUM_PLAYERS + NUM_PLAYERS) % NUM_PLAYERS;
+      p = (((p + this.currentState.direction) % NUM_PLAYERS) + NUM_PLAYERS) % NUM_PLAYERS;
     }
     this.currentState.currentPlayer = p;
   }
 
+  private applyCardEffects(card: UnoCard) {
+    if (card.type === "color") {
+      switch (card.value) {
+        case "reverse":
+          this.currentState.direction = (this.currentState.direction === 1 ? -1 : 1) as 1 | -1;
+          this.advancePlayer();
+          break;
+        case "skip":
+          this.advancePlayer(1);
+          break;
+        case "draw2":
+          this.currentState.pendingDraw += 2;
+          this.advancePlayer();
+          break;
+        default:
+          this.advancePlayer();
+      }
+      return;
+    }
+
+    if (card.wildType === "wild_draw4") {
+      this.currentState.pendingDraw += 4;
+    }
+    this.advancePlayer();
+  }
+
+  private playCard(player: number, card: UnoCard) {
+    const hand = this.currentState.hands[player];
+    const handIdx = hand.findIndex((c) => c.id === card.id);
+    if (handIdx !== -1) {
+      hand.splice(handIdx, 1);
+    }
+
+    this.currentState.discardPile.push(card);
+    this.currentState.activeColor =
+      card.type === "wild" ? pickBestColor(this.currentState.hands[player]) : card.color;
+    this.applyCardEffects(card);
+  }
+
   private recycleDiscard() {
-    if (this.drawPile.length === 0 && this.currentState.discardPile.length > 1) {
-      const top = this.currentState.discardPile.pop()!;
-      this.drawPile = shuffleDeck([top, ...this.currentState.discardPile]);
-      this.currentState.discardPile = [];
+    const recycled = recycleDiscardPile(
+      this.currentState.drawPile,
+      this.currentState.discardPile,
+      (card) => card,
+    );
+    if (recycled) {
+      this.currentState.drawPile = recycled;
     }
   }
 
-  private toUnoState() {
-    return {
-      hands: this.currentState.hands,
-      discardPile: this.currentState.discardPile,
-      currentPlayer: this.currentState.currentPlayer,
-      direction: this.currentState.direction,
-      activeColor: this.currentState.activeColor,
-      pendingDraw: this.currentState.pendingDraw,
-      winner: this.currentState.winner,
-      drawPile: this.drawPile,
-    };
+  private toCardSchema(card: UnoCard) {
+    const sc = new DemoCardSchema();
+    return writeSchemaCardFields(sc, card);
   }
 
   private syncState() {
@@ -345,20 +346,7 @@ export class DemoRoom extends Room<{ state: InstanceType<typeof DemoState> }> {
       if (p === 0) {
         player.hand = new ArraySchema();
         for (const card of this.currentState.hands[p]) {
-          const sc = new DemoCardSchema();
-          sc.id = card.id;
-          if (card.type === "color") {
-            sc.cardType = "color";
-            sc.color = card.color;
-            sc.value = card.value;
-            sc.chosenColor = "";
-          } else {
-            sc.cardType = "wild";
-            sc.color = "";
-            sc.value = card.wildType;
-            sc.chosenColor = card.chosenColor || "";
-          }
-          player.hand.push(sc);
+          player.hand.push(this.toCardSchema(card));
         }
       }
     }
@@ -366,36 +354,22 @@ export class DemoRoom extends Room<{ state: InstanceType<typeof DemoState> }> {
     // Sync discard pile
     this.state.discardPile = new ArraySchema();
     for (const card of this.currentState.discardPile) {
-      const sc = new DemoCardSchema();
-      sc.id = card.id;
-      if (card.type === "color") {
-        sc.cardType = "color";
-        sc.color = card.color;
-        sc.value = card.value;
-        sc.chosenColor = "";
-      } else {
-        sc.cardType = "wild";
-        sc.color = "";
-        sc.value = card.wildType;
-        sc.chosenColor = card.chosenColor || "";
-      }
-      this.state.discardPile.push(sc);
+      this.state.discardPile.push(this.toCardSchema(card));
     }
 
-    this.state.drawPileCount = this.drawPile.length;
+    this.state.drawPileCount = this.currentState.drawPile.length;
     this.state.currentPlayer = this.currentState.currentPlayer;
     this.state.direction = this.currentState.direction;
     this.state.activeColor = this.currentState.activeColor;
     this.state.pendingDraw = this.currentState.pendingDraw;
     this.state.winner = this.currentState.winner ?? -1;
-    this.state.demo.turnCount = this.state.demo.turnCount;
     this.state.demo.winner = this.currentState.winner ?? -1;
   }
 
-  private recordHistory(action: string, cardId: string, chosenColor: string) {
+  private recordHistory(player: number, action: string, cardId: string, chosenColor: string) {
     const entry = new TurnHistoryEntrySchema();
     entry.turn = this.state.demo.turnCount;
-    entry.player = this.currentState.currentPlayer;
+    entry.player = player;
     entry.action = action;
     entry.cardId = cardId;
     entry.chosenColor = chosenColor;
@@ -413,11 +387,17 @@ export class DemoRoom extends Room<{ state: InstanceType<typeof DemoState> }> {
   }
 
   private finishGame() {
+    if (this.disposed || !this.gameStarted) return;
     this.paused = true;
     this.state.demo.phase = "finished";
     this.state.demo.winner = this.currentState.winner ?? -1;
-    this.recordHistory(`win:${this.currentState.winner ?? -1}`, "", "");
-    clearTimeout(this.tickTimer);
+    this.recordHistory(
+      this.currentState.winner ?? -1,
+      `win:${this.currentState.winner ?? -1}`,
+      "",
+      "",
+    );
+    this.clearTickTimer();
     logger.info("DemoRoom", "Game finished", { winner: this.currentState.winner });
   }
 }

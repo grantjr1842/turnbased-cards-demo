@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { UnoRoom } from "../src/rooms/UnoRoom.ts";
 import { UnoCardSchema } from "../src/rooms/schema/UnoRoomState.ts";
-import { canPlay, hasWildDrawFourAlternative } from "../shared/uno.ts";
+import { canPlay, hasWildDrawFourAlternative } from "@repo/server-game";
 
 function makeSchemaCard(
   id: string,
@@ -18,45 +18,36 @@ function makeSchemaCard(
 }
 
 describe("UnoRoom turn scheduling logic", () => {
-  it("treats a stackable draw card as an actionable human turn", () => {
+  it("gives a human with no playable cards the human turn timeout before auto-draw", () => {
     const room = new UnoRoom();
     room.onCreate();
 
-    const currentPlayer = room.state.players.get(String(room.state.currentPlayer))!;
-    currentPlayer.isBot = false;
-    currentPlayer.connected = true;
-    currentPlayer.hand.splice(0, currentPlayer.hand.length);
-    currentPlayer.hand.push(makeSchemaCard("blue_draw2_stack", "blue", "draw2"));
-    currentPlayer.handCount = currentPlayer.hand.length;
+    const originalHumanTimeout = process.env.HUMAN_TURN_TIMEOUT;
+    const originalBotDelay = process.env.BOT_TURN_DELAY;
+    process.env.HUMAN_TURN_TIMEOUT = "7000";
+    process.env.BOT_TURN_DELAY = "800";
 
-    room.state.discardPile.splice(0, room.state.discardPile.length);
-    room.state.discardPile.push(makeSchemaCard("red_draw2_top", "red", "draw2"));
-    room.state.activeColor = "red";
-    room.state.pendingDraw = 2;
-
-    expect(room["playerCanAct"]()).toBe(true);
-
-    room.onDispose();
-  });
-
-  it("does not treat pending draw as actionable without a stackable card", () => {
-    const room = new UnoRoom();
-    room.onCreate();
-
-    const currentPlayer = room.state.players.get(String(room.state.currentPlayer))!;
+    const currentPlayer = room.state.players.get("0")!;
     currentPlayer.isBot = false;
     currentPlayer.connected = true;
     currentPlayer.hand.splice(0, currentPlayer.hand.length);
     currentPlayer.hand.push(makeSchemaCard("red_5_blocked", "red", "5"));
     currentPlayer.handCount = currentPlayer.hand.length;
 
+    room.state.currentPlayer = 0;
     room.state.discardPile.splice(0, room.state.discardPile.length);
-    room.state.discardPile.push(makeSchemaCard("red_draw2_top", "red", "draw2"));
-    room.state.activeColor = "red";
-    room.state.pendingDraw = 2;
+    room.state.discardPile.push(makeSchemaCard("blue_7_top", "blue", "7"));
+    room.state.activeColor = "blue";
+    room.state.pendingDraw = 0;
+    clearTimeout(room["turnTimeout"]);
 
-    expect(room["playerCanAct"]()).toBe(false);
+    const now = Date.now();
+    room["scheduleTurn"]();
 
+    expect(room.state.turnDeadline - now).toBeGreaterThanOrEqual(6500);
+
+    process.env.HUMAN_TURN_TIMEOUT = originalHumanTimeout;
+    process.env.BOT_TURN_DELAY = originalBotDelay;
     room.onDispose();
   });
 });
@@ -88,6 +79,44 @@ describe("UnoRoom restart logic", () => {
     room.onDispose();
   });
 
+  it("clears stale turn timeout handles when scheduling is skipped", () => {
+    const room = new UnoRoom();
+    room.onCreate();
+
+    const previousTimeout = room["turnTimeout"];
+    const previousDeadline = room.state.turnDeadline;
+    room.state.phase = "finished";
+    room.state.winner = 2;
+
+    room["scheduleTurn"]();
+
+    expect(room["turnTimeout"]).toBeUndefined();
+    expect(room["turnTimeout"]).not.toBe(previousTimeout);
+    expect(room.state.turnDeadline).toBe(0);
+    expect(room.state.turnDeadline).not.toBe(previousDeadline);
+
+    room.onDispose();
+  });
+
+  it("clears the active turn timeout handle after the callback fires", async () => {
+    const room = new UnoRoom();
+    room.onCreate();
+
+    const originalBotDelay = process.env.BOT_TURN_DELAY;
+    process.env.BOT_TURN_DELAY = "5";
+
+    room["scheduleTurn"]();
+    room.state.phase = "finished";
+    room.state.winner = 2;
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(room["turnTimeout"]).toBeUndefined();
+
+    process.env.BOT_TURN_DELAY = originalBotDelay;
+    room.onDispose();
+  });
+
   it("restarts a finished game into a clean playable round", () => {
     const room = new UnoRoom();
     room.onCreate();
@@ -103,6 +132,11 @@ describe("UnoRoom restart logic", () => {
     room.state.unoCaller = 1;
     room.state.rematchVotes.push(0, 1);
     room.state.discardPile.push(makeSchemaCard("extra_red_5", "red", "5"));
+    room["turnCallbacks"].set(
+      0,
+      setTimeout(() => {}, 1000),
+    );
+    room["lastActionTime"].set("human-0", Date.now());
 
     room["handleRestart"]({ sessionId: "human-0" } as never);
 
@@ -118,8 +152,57 @@ describe("UnoRoom restart logic", () => {
     expect([1, -1]).toContain(room.state.direction);
     expect(["red", "blue", "green", "yellow"]).toContain(room.state.activeColor);
     expect([0, 2]).toContain(room.state.pendingDraw);
+    expect(room["turnCallbacks"].size).toBe(0);
+    expect(room["lastActionTime"].size).toBe(0);
 
     room.onDispose();
+  });
+
+  it("deduplicates rematch votes and restarts once all connected humans vote", () => {
+    const room = new UnoRoom();
+    room.onCreate();
+
+    const clientA = { sessionId: "human-0", send: () => {} } as never;
+    const clientB = { sessionId: "human-1", send: () => {} } as never;
+    room.onJoin(clientA, { name: "Human A" });
+    room.onJoin(clientB, { name: "Human B" });
+    clearTimeout(room["turnTimeout"]);
+
+    room.state.phase = "finished";
+    room.state.winner = 2;
+
+    room["handleVoteRematch"](clientA);
+    expect(room.state.rematchVotes).toHaveLength(1);
+    expect(room.state.rematchVotes[0]).toBe(0);
+
+    room["handleVoteRematch"](clientA);
+    expect(room.state.rematchVotes).toHaveLength(1);
+    expect(room.state.rematchVotes[0]).toBe(0);
+
+    room["handleVoteRematch"](clientB);
+
+    expect(room.state.phase).toBe("playing");
+    expect(room.state.winner).toBe(-1);
+    expect(room.state.rematchVotes).toHaveLength(0);
+
+    room.onDispose();
+  });
+
+  it("clears lifecycle bookkeeping when disposed", () => {
+    const room = new UnoRoom();
+    room.onCreate();
+
+    room["turnCallbacks"].set(
+      0,
+      setTimeout(() => {}, 1000),
+    );
+    room["lastActionTime"].set("session-1", Date.now());
+
+    room.onDispose();
+
+    expect(room["turnCallbacks"].size).toBe(0);
+    expect(room["lastActionTime"].size).toBe(0);
+    expect(room.state.turnDeadline).toBe(0);
   });
 });
 
@@ -207,10 +290,12 @@ describe("UnoRoom regular human match", () => {
           if (!canPlay(candidate, topDiscard, room.state.activeColor, room.state.pendingDraw)) {
             return false;
           }
-          return candidate.cardType !== "wild" ||
+          return (
+            candidate.cardType !== "wild" ||
             candidate.value !== "wild_draw4" ||
             room.state.pendingDraw >= 4 ||
-            !hasWildDrawFourAlternative(player.hand, topDiscard, room.state.activeColor);
+            !hasWildDrawFourAlternative(player.hand, topDiscard, room.state.activeColor)
+          );
         });
 
         if (card) {

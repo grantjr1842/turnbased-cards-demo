@@ -1,0 +1,13 @@
+{
+  "name": "@repo/server-game",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./uno.ts",
+    "./uno": "./uno.ts"
+  },
+  "dependencies": {
+    "@repo/shared": "workspace:*"
+  }
+}

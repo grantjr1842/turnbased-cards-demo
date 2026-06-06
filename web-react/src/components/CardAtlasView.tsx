@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { cardTextureFromSchema } from "../../../shared/index.ts";
+import { cardTextureFromSchema } from "@repo/shared/gameLogic";
 import type { CardSchema } from "../gameTypes";
 import { ATLAS_ORDER } from "../tableConfig";
 import { cardLabel } from "../gameHelpers";

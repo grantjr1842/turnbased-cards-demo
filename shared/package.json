@@ -1,0 +1,14 @@
+{
+  "name": "@repo/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./avatar": "./avatar.ts",
+    "./constants": "./constants.ts",
+    "./gameLogic": "./gameLogic.ts",
+    "./types": "./types.ts",
+    "./package.json": "./package.json"
+  }
+}

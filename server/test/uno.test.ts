@@ -3,6 +3,7 @@ import {
   createUnoDeck,
   shuffleDeck,
   canPlay,
+  canPlaySchema,
   createGame,
   playCard,
   drawCards,
@@ -13,7 +14,7 @@ import {
   UnoState,
   UnoColor,
   UnoCard,
-} from "../shared/uno.ts";
+} from "@repo/server-game";
 
 // ── Test helpers ─────────────────────────────────────────────────────────────
 
@@ -23,7 +24,11 @@ function makeState(overrides: Partial<UnoState> = {}): UnoState {
 }
 
 /** Build a state where only player 0 has a specific hand, all others empty. */
-function stateWithHand(hand: UnoCard[], discardCard?: UnoCard, activeColor: UnoColor = "red"): UnoState {
+function stateWithHand(
+  hand: UnoCard[],
+  discardCard?: UnoCard,
+  activeColor: UnoColor = "red",
+): UnoState {
   const state = createGame();
   // Give player 0 the specified hand; others get empty hands
   for (let i = 0; i < 4; i++) {
@@ -83,10 +88,17 @@ describe("shuffleDeck", () => {
 
   it("produces different order (statistically)", () => {
     const deck = createUnoDeck();
-    const ids = shuffleDeck(deck).map((c) => c.id).join(",");
+    const ids = shuffleDeck(deck)
+      .map((c) => c.id)
+      .join(",");
     let diff = 0;
     for (let i = 0; i < 5; i++) {
-      if (shuffleDeck(createUnoDeck()).map((c) => c.id).join(",") !== ids) diff++;
+      if (
+        shuffleDeck(createUnoDeck())
+          .map((c) => c.id)
+          .join(",") !== ids
+      )
+        diff++;
     }
     expect(diff).toBeGreaterThan(0);
   });
@@ -96,13 +108,28 @@ describe("shuffleDeck", () => {
 
 describe("canPlay", () => {
   const topRed5 = { type: "color" as const, color: "red" as UnoColor, value: "5", id: "r5" };
-  const topBlueSkip = { type: "color" as const, color: "blue" as UnoColor, value: "skip", id: "bs" };
+  const topBlueSkip = {
+    type: "color" as const,
+    color: "blue" as UnoColor,
+    value: "skip",
+    id: "bs",
+  };
   const topGreen7 = { type: "color" as const, color: "green" as UnoColor, value: "7", id: "g7" };
-  const topRedDraw2 = { type: "color" as const, color: "red" as UnoColor, value: "draw2", id: "rd2" };
+  const topRedDraw2 = {
+    type: "color" as const,
+    color: "red" as UnoColor,
+    value: "draw2",
+    id: "rd2",
+  };
 
   it("wild cards can always be played", () => {
     const wild = { type: "wild" as const, wildType: "wild" as const, chosenColor: null, id: "w" };
-    const wildD4 = { type: "wild" as const, wildType: "wild_draw4" as const, chosenColor: null, id: "wd4" };
+    const wildD4 = {
+      type: "wild" as const,
+      wildType: "wild_draw4" as const,
+      chosenColor: null,
+      id: "wd4",
+    };
     expect(canPlay(wild, topRed5, "red")).toBe(true);
     expect(canPlay(wildD4, topBlueSkip, "blue")).toBe(true);
   });
@@ -114,8 +141,18 @@ describe("canPlay", () => {
   });
 
   it("matches by value (same-value cards playable regardless of color)", () => {
-    const blueSkip = { type: "color" as const, color: "blue" as UnoColor, value: "skip", id: "bs2" };
-    const greenSkip = { type: "color" as const, color: "green" as UnoColor, value: "skip", id: "gs2" };
+    const blueSkip = {
+      type: "color" as const,
+      color: "blue" as UnoColor,
+      value: "skip",
+      id: "bs2",
+    };
+    const greenSkip = {
+      type: "color" as const,
+      color: "green" as UnoColor,
+      value: "skip",
+      id: "gs2",
+    };
     // A skip can be played on another skip (same value), active color irrelevant
     expect(canPlay(blueSkip, topGreen7, "green")).toBe(false); // skip on 7: no color match, no value match
     expect(canPlay(greenSkip, topBlueSkip, "blue")).toBe(true); // skip on skip: match by value
@@ -130,23 +167,43 @@ describe("canPlay", () => {
   // ── Draw-2 Stacking ───────────────────────────────────────────────────────
 
   it("draw2 cards can stack when pendingDraw > 0", () => {
-    const redDraw2 = { type: "color" as const, color: "red" as UnoColor, value: "draw2", id: "rd2a" };
-    const blueDraw2 = { type: "color" as const, color: "blue" as UnoColor, value: "draw2", id: "bd2" };
+    const redDraw2 = {
+      type: "color" as const,
+      color: "red" as UnoColor,
+      value: "draw2",
+      id: "rd2a",
+    };
+    const blueDraw2 = {
+      type: "color" as const,
+      color: "blue" as UnoColor,
+      value: "draw2",
+      id: "bd2",
+    };
     const red5 = { type: "color" as const, color: "red" as UnoColor, value: "5", id: "r5a" };
     // pendingDraw = 2 (from previous draw2), top card is red draw2
     expect(canPlay(blueDraw2, topRedDraw2, "red", 2)).toBe(true); // stacking draw2
-    expect(canPlay(red5, topRedDraw2, "red", 2)).toBe(false);    // non-draw2 can't play
+    expect(canPlay(red5, topRedDraw2, "red", 2)).toBe(false); // non-draw2 can't play
   });
 
   it("non-draw2 color cards cannot play when pendingDraw > 0", () => {
     const red5 = { type: "color" as const, color: "red" as UnoColor, value: "5", id: "r5b" };
-    const greenSkip = { type: "color" as const, color: "green" as UnoColor, value: "skip", id: "gs3" };
+    const greenSkip = {
+      type: "color" as const,
+      color: "green" as UnoColor,
+      value: "skip",
+      id: "gs3",
+    };
     expect(canPlay(red5, topRedDraw2, "red", 2)).toBe(false);
     expect(canPlay(greenSkip, topRedDraw2, "red", 2)).toBe(false);
   });
 
   it("wild draw4 can stack on pending draw4 (pendingDraw >= 4)", () => {
-    const wildD4 = { type: "wild" as const, wildType: "wild_draw4" as const, chosenColor: null, id: "wd4s" };
+    const wildD4 = {
+      type: "wild" as const,
+      wildType: "wild_draw4" as const,
+      chosenColor: null,
+      id: "wd4s",
+    };
     const topWild = { type: "wild" as const, value: "wild_draw4" as const, id: "tw" };
     // pendingDraw = 4 (from previous draw4), top card is wild draw4
     expect(canPlay(wildD4, topWild, "red", 4)).toBe(true);
@@ -155,17 +212,49 @@ describe("canPlay", () => {
   });
 
   it("draw2 cannot stack on a pending wild draw4", () => {
-    const blueDraw2 = { type: "color" as const, color: "blue" as UnoColor, value: "draw2", id: "bd2_on_d4" };
-    const topWild = { type: "wild" as const, wildType: "wild_draw4" as const, chosenColor: "red" as UnoColor, id: "wd4_top" };
+    const blueDraw2 = {
+      type: "color" as const,
+      color: "blue" as UnoColor,
+      value: "draw2",
+      id: "bd2_on_d4",
+    };
+    const topWild = {
+      type: "wild" as const,
+      wildType: "wild_draw4" as const,
+      chosenColor: "red" as UnoColor,
+      id: "wd4_top",
+    };
 
     expect(canPlay(blueDraw2, topWild, "red", 4)).toBe(false);
   });
 
   it("without pendingDraw, draw2 plays normally (match by value)", () => {
-    const redDraw2 = { type: "color" as const, color: "red" as UnoColor, value: "draw2", id: "rd2c" };
+    const redDraw2 = {
+      type: "color" as const,
+      color: "red" as UnoColor,
+      value: "draw2",
+      id: "rd2c",
+    };
     // No pendingDraw, draw2 can be played on matching value or color
-    expect(canPlay(redDraw2, topRed5, "red", 0)).toBe(true);  // color match
+    expect(canPlay(redDraw2, topRed5, "red", 0)).toBe(true); // color match
     expect(canPlay(redDraw2, topBlueSkip, "blue", 0)).toBe(false); // no match
+  });
+});
+
+describe("canPlaySchema", () => {
+  it("matches canPlay across representative rule branches", () => {
+    const topRed5 = { cardType: "color" as const, color: "red", value: "5", id: "r5" };
+    const topBlueSkip = { cardType: "color" as const, color: "blue", value: "skip", id: "bs" };
+    const topWildDraw4 = { cardType: "wild" as const, color: "", value: "wild_draw4", id: "wd4" };
+    const wildDraw4 = { cardType: "wild" as const, color: "", value: "wild_draw4", id: "wd4b" };
+    const red5 = { cardType: "color" as const, color: "red", value: "5", id: "r5b" };
+
+    expect(canPlaySchema(red5, topBlueSkip, "red")).toBe(canPlay(red5, topBlueSkip, "red"));
+    expect(canPlaySchema(wildDraw4, topRed5, "red")).toBe(canPlay(wildDraw4, topRed5, "red"));
+    expect(canPlaySchema(wildDraw4, topWildDraw4, "red", 4)).toBe(
+      canPlay(wildDraw4, topWildDraw4, "red", 4),
+    );
+    expect(canPlaySchema(red5, topBlueSkip, "blue", 2)).toBe(canPlay(red5, topBlueSkip, "blue", 2));
   });
 });
 
@@ -218,17 +307,13 @@ describe("playCard", () => {
   });
 
   it("is immutable — original state is unchanged", () => {
-    const state = stateWithHand([
-      { type: "color", color: "red", value: "5", id: "r5" },
-    ]);
+    const state = stateWithHand([{ type: "color", color: "red", value: "5", id: "r5" }]);
     playCard(state, 0, "r5");
     expect(state.hands[0].length).toBe(1);
   });
 
   it("declares winner when hand becomes empty", () => {
-    const state = stateWithHand([
-      { type: "color", color: "red", value: "5", id: "r5" },
-    ]);
+    const state = stateWithHand([{ type: "color", color: "red", value: "5", id: "r5" }]);
     const result = playCard(state, 0, "r5");
     expect(result.winner).toBe(0);
   });
@@ -245,18 +330,17 @@ describe("playCard", () => {
   });
 
   it("sets chosenColor and activeColor for wild cards", () => {
-    const state = stateWithHand([
-      { type: "wild", wildType: "wild", chosenColor: null, id: "w" },
-    ]);
+    const state = stateWithHand([{ type: "wild", wildType: "wild", chosenColor: null, id: "w" }]);
     const result = playCard(state, 0, "w", "red");
     expect(result.activeColor).toBe("red");
-    expect((result.discardPile[result.discardPile.length - 1] as UnoCard & { chosenColor: string }).chosenColor).toBe("red");
+    expect(
+      (result.discardPile[result.discardPile.length - 1] as UnoCard & { chosenColor: string })
+        .chosenColor,
+    ).toBe("red");
   });
 
   it("rejects invalid chosenColor values for wild cards", () => {
-    const state = stateWithHand([
-      { type: "wild", wildType: "wild", chosenColor: null, id: "w" },
-    ]);
+    const state = stateWithHand([{ type: "wild", wildType: "wild", chosenColor: null, id: "w" }]);
 
     const result = playCard(state, 0, "w", "purple" as UnoColor);
 
@@ -320,26 +404,20 @@ describe("playCard", () => {
   });
 
   it("returns original state for nonexistent card ID", () => {
-    const state = stateWithHand([
-      { type: "color", color: "red", value: "5", id: "r5" },
-    ]);
+    const state = stateWithHand([{ type: "color", color: "red", value: "5", id: "r5" }]);
     const result = playCard(state, 0, "nonexistent");
     expect(result).toBe(state);
   });
 
   it("rejects invalid player indexes", () => {
-    const state = stateWithHand([
-      { type: "color", color: "red", value: "5", id: "r5" },
-    ]);
+    const state = stateWithHand([{ type: "color", color: "red", value: "5", id: "r5" }]);
 
     expect(playCard(state, -1, "r5")).toBe(state);
     expect(playCard(state, 4, "r5")).toBe(state);
   });
 
   it("rejects plays from a player whose turn it is not", () => {
-    const state = stateWithHand([
-      { type: "color", color: "red", value: "5", id: "r5" },
-    ]);
+    const state = stateWithHand([{ type: "color", color: "red", value: "5", id: "r5" }]);
     state.currentPlayer = 1;
 
     const result = playCard(state, 0, "r5");
@@ -348,9 +426,7 @@ describe("playCard", () => {
   });
 
   it("rejects plays after the game already has a winner", () => {
-    const state = stateWithHand([
-      { type: "color", color: "red", value: "5", id: "r5" },
-    ]);
+    const state = stateWithHand([{ type: "color", color: "red", value: "5", id: "r5" }]);
     state.winner = 2;
 
     const result = playCard(state, 0, "r5");
@@ -431,7 +507,12 @@ describe("getPlayableCards", () => {
   });
 
   it("returns empty during pendingDraw when the player has no stackable draw card", () => {
-    const discard = { type: "color" as const, color: "red" as UnoColor, value: "draw2", id: "rd2_top" };
+    const discard = {
+      type: "color" as const,
+      color: "red" as UnoColor,
+      value: "draw2",
+      id: "rd2_top",
+    };
     let state = stateWithHand(
       [
         { type: "color", color: "red", value: "5", id: "r5_not_stackable" },
@@ -446,7 +527,12 @@ describe("getPlayableCards", () => {
   });
 
   it("returns stackable draw cards while pendingDraw is active", () => {
-    const discard = { type: "color" as const, color: "red" as UnoColor, value: "draw2", id: "rd2_top" };
+    const discard = {
+      type: "color" as const,
+      color: "red" as UnoColor,
+      value: "draw2",
+      id: "rd2_top",
+    };
     const state = stateWithHand(
       [
         { type: "color", color: "blue", value: "draw2", id: "bd2_stack" },

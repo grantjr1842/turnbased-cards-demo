@@ -1,3 +1,46 @@
+export {
+  AVATAR_SYMBOLS,
+  AVATAR_SYMBOLS_BY_ID,
+  AVATAR_THEMES,
+  AVATAR_THEMES_BY_ID,
+} from "@repo/shared/avatar";
+
+export const CARD_BACK_SKINS = [
+  {
+    id: "classic",
+    label: "Classic",
+    toast: "Card back skin changed to Classic Crimson",
+  },
+  {
+    id: "cyber",
+    label: "Cyber",
+    toast: "Card back skin changed to Cyber Gold",
+  },
+  {
+    id: "cosmic",
+    label: "Cosmic",
+    toast: "Card back skin changed to Cosmic Nebula",
+  },
+] as const satisfies ReadonlyArray<{
+  id: string;
+  label: string;
+  toast: string;
+}>;
+
+export type CardBackSkin = (typeof CARD_BACK_SKINS)[number]["id"];
+
+export const CARD_BACK_SKINS_BY_ID = Object.fromEntries(
+  CARD_BACK_SKINS.map((skin) => [skin.id, skin]),
+) as Record<CardBackSkin, (typeof CARD_BACK_SKINS)[number]>;
+
+export function isCardBackSkin(value: string): value is CardBackSkin {
+  return CARD_BACK_SKINS.some((skin) => skin.id === value);
+}
+
+export function normalizeCardBackSkin(value: string | null): CardBackSkin {
+  return value && isCardBackSkin(value) ? value : "classic";
+}
+
 export const ATLAS_ORDER = [
   "red_0",
   "red_1",
@@ -54,38 +97,4 @@ export const ATLAS_ORDER = [
   "wild",
   "wild_draw4",
   "back",
-];
-
-export const AVATAR_SYMBOLS = [
-  { id: "tiger", emoji: "🐯", name: "Neon Tiger" },
-  { id: "dragon", emoji: "🐲", name: "Cosmic Dragon" },
-  { id: "phoenix", emoji: "🦅", name: "Golden Phoenix" },
-  { id: "panda", emoji: "🐼", name: "Shadow Panda" },
-  { id: "wolf", emoji: "🐺", name: "Alpha Wolf" },
-  { id: "owl", emoji: "🦉", name: "Cyber Owl" },
-  { id: "fox", emoji: "🦊", name: "Spectral Fox" },
-  { id: "shark", emoji: "🦈", name: "Deep Shark" },
-];
-
-export const AVATAR_THEMES = [
-  { id: "rose", name: "Neon Rose", primary: "hsl(358, 75%, 55%)", secondary: "hsl(340, 75%, 45%)" },
-  {
-    id: "sapphire",
-    name: "Electric Sapphire",
-    primary: "hsl(208, 85%, 52%)",
-    secondary: "hsl(220, 80%, 42%)",
-  },
-  {
-    id: "aurora",
-    name: "Emerald Aurora",
-    primary: "hsl(148, 65%, 45%)",
-    secondary: "hsl(160, 60%, 35%)",
-  },
-  { id: "sol", name: "Golden Sol", primary: "hsl(46, 95%, 55%)", secondary: "hsl(35, 90%, 45%)" },
-  {
-    id: "nebula",
-    name: "Purple Nebula",
-    primary: "hsl(280, 75%, 55%)",
-    secondary: "hsl(260, 70%, 45%)",
-  },
 ];

@@ -1,0 +1,25 @@
+packages:
+  - .
+  - ../shared
+  - ../server-game
+
+# Disable pnpm 11's 24h "minimum release age" supply-chain check for this workspace.
+# Documented at https://pnpm.io/settings#minimumreleaseage
+# Note: this MUST live in pnpm-workspace.yaml — pnpm 11 only reads auth/registry
+# from .npmrc, not other settings.
+minimumReleaseAge: 0
+
+# Approve build scripts for the native-binary packages pnpm 11 would otherwise block
+# with ERR_PNPM_IGNORED_BUILDS. Both are legitimate transitive deps that need to
+# download platform-specific binaries at install time:
+#   - esbuild         -> pulled in by vitest's pipeline (devDependency)
+#   - msgpackr-extract -> pulled in by @colyseus/msgpackr -> @colyseus/schema
+allowBuilds:
+  esbuild: true
+  msgpackr-extract: true
+
+# Server pulls in a transitive git-repo dep (uWebSockets.js via @colyseus/*) that
+# pnpm 11's default `blockExoticSubdeps: true` would refuse. The dep is fetched
+# by name from the official uNetworking GitHub release and is a known, widely-
+# used Colyseus runtime. Allow it here rather than rewrite the colyseus transport.
+blockExoticSubdeps: false
