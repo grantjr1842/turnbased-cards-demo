@@ -1,8 +1,11 @@
-import { parsePlayerName } from "../gameHelpers";
-import { getStats } from "../stats";
+import { useMemo, useSyncExternalStore } from "react";
+import { getStatsSnapshot, formatMatchHistory, parseStatsSnapshot, subscribeToStatsChanges } from "../stats";
 
 export function StatsDashboard() {
-  const stats = getStats();
+  const statsSnapshot = useSyncExternalStore(subscribeToStatsChanges, getStatsSnapshot, getStatsSnapshot);
+  const stats = useMemo(() => parseStatsSnapshot(statsSnapshot), [statsSnapshot]);
+  const displayHistory = useMemo(() => formatMatchHistory(stats.history ?? []), [stats.history]);
+
   if (stats.played === 0) return null;
 
   return (
@@ -23,93 +26,28 @@ export function StatsDashboard() {
         </div>
       </div>
 
-      {stats.history && stats.history.length > 0 && (
-        <div
-          className="history-section"
-          style={{
-            marginTop: "16px",
-            textAlign: "left",
-            display: "flex",
-            flexDirection: "column",
-            gap: "8px",
-          }}
-        >
-          <h4
-            style={{
-              fontSize: "11px",
-              textTransform: "uppercase",
-              color: "var(--text-muted)",
-              letterSpacing: "0.08em",
-              margin: 0,
-            }}
-          >
-            Recent Matches
-          </h4>
-          <div
-            className="history-list"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "6px",
-              maxHeight: "180px",
-              overflowY: "auto",
-              paddingRight: "4px",
-            }}
-          >
-            {stats.history.map((entry) => (
-              <div
-                key={entry.id}
-                className="history-row"
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  background: "rgba(255, 255, 255, 0.02)",
-                  border: "1px solid rgba(255, 255, 255, 0.04)",
-                  padding: "8px 12px",
-                  borderRadius: "10px",
-                  fontSize: "12px",
-                }}
-              >
-                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                  <strong
-                    style={{
-                      color: entry.win ? "var(--gold)" : "var(--card-red)",
-                      fontSize: "12px",
-                    }}
-                  >
+      {displayHistory.length > 0 && (
+        <div className="history-section">
+          <h4 className="history-heading">Recent Matches</h4>
+          <div className="history-list">
+            {displayHistory.map((entry) => (
+              <div key={entry.id} className="history-row">
+                <div className="history-row-body">
+                  <strong className={`history-row-title ${entry.win ? "win" : "loss"}`}>
                     {entry.win ? "Victory 🏆" : "Defeat 💀"}
                   </strong>
-                  <span style={{ color: "var(--text-faint)", fontSize: "10px" }}>
-                    Winner: {parsePlayerName(entry.winnerName).name} • {Math.round(entry.durationSec)}s
+                  <span className="history-row-meta">
+                    Winner: {entry.winnerDisplayName} • {entry.durationLabel}
                   </span>
-                  {entry.opponentNames && entry.opponentNames.length > 0 && (
-                    <span
-                      style={{
-                        color: "var(--text-muted)",
-                        fontSize: "9px",
-                        textOverflow: "ellipsis",
-                        overflow: "hidden",
-                        whiteSpace: "nowrap",
-                        maxWidth: "180px",
-                      }}
-                    >
-                      VS: {entry.opponentNames.map((name) => parsePlayerName(name).name).join(", ")}
+                  {entry.opponentDisplayNames.length > 0 && (
+                    <span className="history-row-opponents">
+                      VS: {entry.opponentDisplayNames.join(", ")}
                     </span>
                   )}
                 </div>
-                <div
-                  style={{
-                    textAlign: "right",
-                    fontSize: "10px",
-                    color: "var(--text-muted)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "2px",
-                  }}
-                >
+                <div className="history-row-score">
                   <strong>{entry.cardsPlayed} cards</strong>
-                  <span>{new Date(entry.timestamp).toLocaleDateString()}</span>
+                  <span className="history-row-date">{entry.formattedDate}</span>
                 </div>
               </div>
             ))}

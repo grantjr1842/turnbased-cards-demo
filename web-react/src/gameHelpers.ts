@@ -1,6 +1,4 @@
-import type { CardSchema, PlayerSchema, UnoState } from "./gameTypes";
-import type { Room } from "@colyseus/sdk";
-import { canPlaySchema } from "../../shared/index.ts";
+import type { CardSchema, PlayDirection, PlayerSchema, UnoColor, UnoState } from "./gameTypes";
 
 export function parsePlayerName(rawName: string) {
   const match = rawName.match(/^\[av-([a-z0-9]+)-([a-z0-9]+)\](.*)$/);
@@ -51,6 +49,10 @@ export function getCardCountClass(count: number) {
   return "gauge-safe";
 }
 
+export function getPlayerCardCount(player: PlayerSchema | null | undefined) {
+  return player?.handCount ?? player?.hand?.length ?? 0;
+}
+
 export function getDeterministicRotation(idx: number) {
   const rotations = [-6, 8, -3, 5, -7, 4, -8, 2, -1, 6, -5, 3, -4, 7, -2, 9];
   return rotations[Math.abs(idx) % rotations.length];
@@ -72,29 +74,29 @@ export function statePlayers(state: UnoState | null): PlayerSchema[] {
   return players.sort((a, b) => a.seatIndex - b.seatIndex);
 }
 
-export function localPlayer(room: Room<UnoState> | null, state: UnoState | null) {
-  const players = statePlayers(state);
-  if (!room) return null;
-  return players.find((player) => player.sessionId === room.sessionId) ?? null;
+export function isCounterClockwise(direction: PlayDirection) {
+  return direction === -1;
 }
 
-export function isPlayable(card: CardSchema, state: UnoState | null, hand: CardSchema[] = []) {
-  const pile = state?.discardPile ?? [];
-  const top = pile[pile.length - 1];
-  if (!top) return false;
-  const basicPlayable = canPlaySchema(card, top, state?.activeColor || "red", state?.pendingDraw || 0);
-  if (!basicPlayable) return false;
+export function getPlayDirectionLabels(direction: PlayDirection) {
+  return isCounterClockwise(direction)
+    ? {
+        short: "CCW ◀",
+        full: "Counter-Clockwise ◀",
+      }
+    : {
+        short: "CW ▶",
+        full: "Clockwise ▶",
+      };
+}
 
-  if (card.cardType === "wild" && card.value === "wild_draw4") {
-    const activeColor = state?.activeColor || "red";
-    const pendingDraw = state?.pendingDraw || 0;
-    const hasMatchingColor = hand.some((c) => c.cardType === "color" && c.color === activeColor);
-    const hasMatchingValue =
-      top.cardType === "color" && hand.some((c) => c.cardType === "color" && c.value === top.value);
-    const canStack = pendingDraw >= 4;
-    if ((hasMatchingColor || hasMatchingValue) && !canStack) {
-      return false;
-    }
+export function getPlayDirection(state: Pick<UnoState, "direction"> | null | undefined): PlayDirection {
+  return state?.direction ?? 1;
+}
+
+export function normalizeActiveColor(value: string | undefined): UnoColor {
+  if (value === "red" || value === "blue" || value === "green" || value === "yellow") {
+    return value;
   }
-  return true;
+  return "red";
 }

@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface TurnTimerRingProps {
   active: boolean;
@@ -9,11 +9,17 @@ interface TurnTimerRingProps {
 export function TurnTimerRing({ active, turnDeadline }: TurnTimerRingProps) {
   const [pct, setPct] = useState(100);
   const [critical, setCritical] = useState(false);
+  const pctRef = useRef(100);
+  const criticalRef = useRef(false);
 
   useEffect(() => {
     if (!active || !turnDeadline) {
+      pctRef.current = 0;
       setPct(0);
-      setCritical(false);
+      if (criticalRef.current) {
+        criticalRef.current = false;
+        setCritical(false);
+      }
       return;
     }
 
@@ -24,9 +30,16 @@ export function TurnTimerRing({ active, turnDeadline }: TurnTimerRingProps) {
     const update = () => {
       const now = Date.now();
       const remaining = turnDeadline - now;
-      const newPct = Math.max(0, Math.min(100, (remaining / total) * 100));
-      setPct(newPct);
-      setCritical(remaining < 2500);
+      const nextPct = Math.max(0, Math.min(100, Math.ceil((remaining / total) * 100)));
+      if (pctRef.current !== nextPct) {
+        pctRef.current = nextPct;
+        setPct(nextPct);
+      }
+      const nextCritical = remaining < 2500;
+      if (criticalRef.current !== nextCritical) {
+        criticalRef.current = nextCritical;
+        setCritical(nextCritical);
+      }
 
       if (remaining > 0) {
         frame = requestAnimationFrame(update);

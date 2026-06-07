@@ -14,6 +14,7 @@ This file records the current correctness baseline for the maintained web demo.
 - Server game-logic tests pass, including full-game autoplay completion and turn-limit exhaustion.
 - Room-level tests pass for bot turns and repeated game completion.
 - Invalid/malformed card inputs are rejected by shared play validation.
+- The React client unit tests pass for the extracted room helpers and shared command utilities.
 - The React client builds and lints.
 - The browser smoke test starts the server and client, joins a live table on desktop and mobile, attempts a real play/draw action, captures screenshots, and fails on relevant browser console/page errors.
 
@@ -23,6 +24,7 @@ This file records the current correctness baseline for the maintained web demo.
 cd server && npm test
 cd server && npm run build
 cd web-react && npm run lint
+cd web-react && npm run test:unit
 cd web-react && npm run build
 ./scripts/smoke-web-agent-browser.sh
 ```

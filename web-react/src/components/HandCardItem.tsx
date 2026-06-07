@@ -15,7 +15,7 @@ interface HandCardItemProps {
   isSelected: boolean;
   colorblindMode: boolean;
   dynamicMarginValue: string;
-  setSelectedCardIdx: (idx: number) => void;
+  setSelectedCardId: (cardId: string | null) => void;
   playCard: (card: CardSchema, color?: UnoColor) => void;
   onUnplayableTap: (card: CardSchema) => void;
 }
@@ -30,27 +30,27 @@ export function HandCardItem({
   isSelected,
   colorblindMode,
   dynamicMarginValue,
-  setSelectedCardIdx,
+  setSelectedCardId,
   playCard,
   onUnplayableTap,
 }: HandCardItemProps) {
   const [dragY, setDragY] = useState(0);
+  const [isNew, setIsNew] = useState(true);
   const touchStartY = useRef(0);
+  const dragYRef = useRef(0);
   const isDragging = useRef(false);
+  const suppressNextClickUntil = useRef(0);
   const cardRectRef = useRef<DOMRect | null>(null);
-  const isNewRef = useRef(true);
-  const isNew = isNewRef.current;
 
   useEffect(() => {
-    if (!isNewRef.current) return;
-    isNewRef.current = false;
-    const timer = setTimeout(() => {
-      isNewRef.current = false;
+    const timer = window.setTimeout(() => {
+      setIsNew(false);
     }, 600);
     return () => clearTimeout(timer);
   }, []);
 
   const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    suppressNextClickUntil.current = 0;
     touchStartY.current = e.touches[0].clientY;
     isDragging.current = true;
   };
@@ -59,27 +59,31 @@ export function HandCardItem({
     if (!isDragging.current) return;
     const diffY = touchStartY.current - e.touches[0].clientY;
     const offset = diffY > 0 ? Math.min(90, diffY) : Math.max(-40, diffY);
+    dragYRef.current = offset;
     setDragY(offset);
   };
 
   const handleTouchEnd = (e: TouchEvent<HTMLDivElement>) => {
     if (!isDragging.current) return;
     isDragging.current = false;
+    suppressNextClickUntil.current = performance.now() + 400;
     e.preventDefault();
 
-    if (dragY > 50) {
+    const dragDistance = dragYRef.current;
+
+    if (dragDistance > 50) {
       if (playable) {
         playCard(card);
       } else {
         sfx.playPluck();
         onUnplayableTap(card);
       }
-    } else if (dragY < -25) {
+    } else if (dragDistance < -25) {
       if (isSelected) {
-        setSelectedCardIdx(-1);
+        setSelectedCardId(null);
         sfx.playSwish();
       }
-    } else if (Math.abs(dragY) < 10) {
+    } else if (Math.abs(dragDistance) < 10) {
       if (isSelected) {
         if (playable) {
           playCard(card);
@@ -87,11 +91,19 @@ export function HandCardItem({
           sfx.playPluck();
         }
       } else {
-        setSelectedCardIdx(idx);
+        setSelectedCardId(card.id);
         sfx.playSwish();
       }
     }
 
+    dragYRef.current = 0;
+    setDragY(0);
+  };
+
+  const handleTouchCancel = () => {
+    isDragging.current = false;
+    suppressNextClickUntil.current = performance.now() + 400;
+    dragYRef.current = 0;
     setDragY(0);
   };
 
@@ -104,9 +116,9 @@ export function HandCardItem({
 
   let yOffset = tyVal;
   if (isSelected) {
-    yOffset -= 32;
+    yOffset -= 28;
   } else if (playable) {
-    yOffset -= 16;
+    yOffset -= 12;
   }
   yOffset -= dragY;
 
@@ -125,6 +137,7 @@ export function HandCardItem({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
       onMouseMove={(e) => {
         if (isDragged) return;
         let rect = cardRectRef.current;
@@ -151,7 +164,11 @@ export function HandCardItem({
       style={inlineStyle}
     >
       <button
+        className="hand-card-button"
         onClick={(e) => {
+          if (performance.now() < suppressNextClickUntil.current) {
+            return;
+          }
           e.stopPropagation();
           if (isSelected) {
             if (playable) {
@@ -161,12 +178,11 @@ export function HandCardItem({
               onUnplayableTap(card);
             }
           } else {
-            setSelectedCardIdx(idx);
+            setSelectedCardId(card.id);
             sfx.playSwish();
           }
         }}
         type="button"
-        style={{ width: "100%", height: "100%" }}
         aria-label={cardLabel(card)}
       >
         <CardAtlasView card={card} colorblind={colorblindMode} />

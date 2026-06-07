@@ -10,7 +10,7 @@ export interface TutorialCard {
 interface TableTutorialGuideProps {
   tutorial: TutorialCard;
   tutorialStep: number;
-  tutorialCount: number;
+  isLastTutorialStep: boolean;
   tutorialDialogRef: RefObject<HTMLElement | null>;
   onCloseTutorial: () => void;
   onAdvanceTutorial: () => void;
@@ -19,7 +19,7 @@ interface TableTutorialGuideProps {
 export function TableTutorialGuide({
   tutorial,
   tutorialStep,
-  tutorialCount,
+  isLastTutorialStep,
   tutorialDialogRef,
   onCloseTutorial,
   onAdvanceTutorial,
@@ -48,7 +48,7 @@ export function TableTutorialGuide({
           Skip guide
         </button>
         <button className="guide-next-btn" data-testid="tutorial-next" onClick={onAdvanceTutorial} type="button">
-          {tutorialStep === tutorialCount - 1 ? "Start playing" : "Next"}
+          {isLastTutorialStep ? "Start playing" : "Next"}
         </button>
       </div>
     </section>

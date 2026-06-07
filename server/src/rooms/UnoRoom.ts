@@ -1,4 +1,4 @@
-import { Room, Client } from "@colyseus/core";
+import { Room, Client } from "colyseus";
 import { StateView, ArraySchema } from "@colyseus/schema";
 import {
   UnoRoomState,
@@ -6,7 +6,7 @@ import {
   UnoCardSchema,
   ChatMessageSchema,
 } from "./schema/UnoRoomState.ts";
-import { AVATAR_SYMBOLS_BY_ID, AVATAR_THEMES_BY_ID } from "@repo/shared/avatar";
+import { AVATAR_SYMBOLS_BY_ID, AVATAR_THEMES_BY_ID } from "../../../shared/avatar.ts";
 import {
   ACTION_COOLDOWN_MS,
   BOT_TURN_DELAY_MS,

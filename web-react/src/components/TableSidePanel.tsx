@@ -1,58 +1,36 @@
+import { memo } from "react";
 import { AvatarIcon } from "./AvatarIcon";
-import type { Toast } from "../gameTypes";
-
-interface MeSummary {
-  displayName: string;
-  symbol: string;
-  theme: string;
-  seatIndex: number;
-  spectatorCount: number;
-}
-
-interface RosterEntry {
-  sessionId: string;
-  displayName: string;
-  symbol: string;
-  theme: string;
-  isBot: boolean;
-  cardCount: number;
-  active: boolean;
-}
+import type { UnoState } from "../gameTypes";
+import type { MeSummary, RosterEntry } from "./tableRoomPlayers";
+import { getCardCountClass } from "../gameHelpers";
+import { CARD_BACK_SKINS, type CardBackSkin } from "../tableConfig";
 
 interface TableSidePanelProps {
   me: MeSummary | null;
   topCardLabel: string;
-  phase: string | undefined;
+  phase: UnoState["phase"] | undefined;
   roster: RosterEntry[];
-  cardBackTheme: string;
-  onSetCardBackTheme: (theme: string) => void;
-  showToast: (message: string, kind?: Toast["kind"]) => void;
+  cardBackTheme: CardBackSkin;
+  onSetCardBackTheme: (theme: CardBackSkin) => void;
 }
 
-const getCardCountClass = (count: number) => {
-  if (count === 1) return "gauge-critical";
-  if (count <= 3) return "gauge-alert";
-  return "gauge-safe";
-};
-
-export function TableSidePanel({
+function TableSidePanelBase({
   me,
   topCardLabel,
   phase,
   roster,
   cardBackTheme,
   onSetCardBackTheme,
-  showToast,
 }: TableSidePanelProps) {
   return (
     <aside className="side-panel">
       <div className="status-card status-card-row">
         {me && (
-          <div className="avatar-wrapper-pill" style={{ position: "relative" }}>
+          <div className="avatar-wrapper-pill">
             <AvatarIcon symbol={me.symbol} theme={me.theme} size={40} glow />
           </div>
         )}
-        <div style={{ display: "flex", flexDirection: "column" }}>
+        <div className="status-card-body">
           <span>Seat Allocation</span>
           <strong>{me ? `${me.displayName} (Seat ${me.seatIndex + 1})` : "Spectator"}</strong>
           <small>{me?.spectatorCount ?? 0} Watching table</small>
@@ -69,16 +47,12 @@ export function TableSidePanel({
         <span>Opponent Cards</span>
         <div className="roster-list">
           {roster.length === 0 ? (
-            <p style={{ color: "var(--text-faint)" }}>Awaiting players...</p>
+            <p className="roster-empty-copy">Awaiting players...</p>
           ) : (
             roster.map((player) => (
-              <div
-                className="roster-row"
-                key={player.sessionId}
-                style={{ display: "flex", alignItems: "center", gap: "8px" }}
-              >
+              <div className="roster-row roster-row-shell" key={player.sessionId}>
                 <AvatarIcon symbol={player.symbol} theme={player.theme} size={28} glow={player.active} />
-                <div className="roster-row-info" style={{ flex: 1 }}>
+                <div className="roster-row-info roster-row-main">
                   <strong>{player.displayName}</strong>
                   <span>{player.isBot ? "Bot" : "Opponent"}</span>
                 </div>
@@ -94,41 +68,21 @@ export function TableSidePanel({
       <div className="roster-card skin-picker-card">
         <span>Card Back Skin</span>
         <div className="skin-picker-grid">
-          <button
-            className={`skin-picker-btn classic ${cardBackTheme === "classic" ? "active" : ""}`}
-            onClick={() => {
-              onSetCardBackTheme("classic");
-              showToast("Card back skin changed to Classic Crimson", "success");
-            }}
-            type="button"
-          >
-            <div className="skin-preview-thumb classic" />
-            <span>Classic</span>
-          </button>
-          <button
-            className={`skin-picker-btn cyber ${cardBackTheme === "cyber" ? "active" : ""}`}
-            onClick={() => {
-              onSetCardBackTheme("cyber");
-              showToast("Card back skin changed to Cyber Gold", "success");
-            }}
-            type="button"
-          >
-            <div className="skin-preview-thumb cyber" />
-            <span>Cyber</span>
-          </button>
-          <button
-            className={`skin-picker-btn cosmic ${cardBackTheme === "cosmic" ? "active" : ""}`}
-            onClick={() => {
-              onSetCardBackTheme("cosmic");
-              showToast("Card back skin changed to Cosmic Nebula", "success");
-            }}
-            type="button"
-          >
-            <div className="skin-preview-thumb cosmic" />
-            <span>Cosmic</span>
-          </button>
+          {CARD_BACK_SKINS.map((skin) => (
+            <button
+              key={skin.id}
+              className={`skin-picker-btn ${skin.id} ${cardBackTheme === skin.id ? "active" : ""}`}
+              onClick={() => onSetCardBackTheme(skin.id)}
+              type="button"
+            >
+              <div className={`skin-preview-thumb ${skin.id}`} />
+              <span>{skin.label}</span>
+            </button>
+          ))}
         </div>
       </div>
     </aside>
   );
 }
+
+export const TableSidePanel = memo(TableSidePanelBase);

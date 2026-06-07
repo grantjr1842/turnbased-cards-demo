@@ -22,7 +22,8 @@ The `server/` directory contains the shared game server powered by Colyseus 0.17
 Start the server:
 
 ```bash
-cd server && npm install
+cd server
+npm install
 npm run dev
 ```
 
@@ -34,17 +35,19 @@ For the fastest local setup (server + web client), see [QUICKSTART.md](QUICKSTAR
 
 ## Verification
 
-The maintained web path is covered by server rule tests, a browser smoke test, and CI workflows:
+The maintained web path is covered by server rule tests, web client unit tests, a browser smoke test, and CI workflows:
 
 ```bash
 cd server && npm test
 cd server && npm run build
+cd web-react && npm run test:unit
 cd web-react && npm run lint
 cd web-react && npm run build
 ./scripts/smoke-web-agent-browser.sh
 ```
 
 Server tests include autoplay coverage for full game completion and turn-limit exhaustion. The smoke test starts the server and React client, joins a live table in desktop and mobile viewports, attempts a real play/draw interaction, checks browser console/page errors, and writes screenshots under `.tmp-agent-browser/`.
+Web client unit tests cover the extracted room helpers and shared command utilities.
 
 ## Assets
 

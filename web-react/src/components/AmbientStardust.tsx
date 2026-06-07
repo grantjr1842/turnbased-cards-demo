@@ -1,5 +1,4 @@
 import type { CSSProperties } from "react";
-import { useEffect, useRef, useState } from "react";
 
 interface StardustParticle {
   id: string;
@@ -10,29 +9,23 @@ interface StardustParticle {
   color: string;
 }
 
+const STARDUST_PARTICLES: StardustParticle[] = Array.from({ length: 18 }, (_, index) => {
+  const isViolet = index % 3 !== 1;
+  const color = isViolet ? "hsla(280, 75%, 65%, 0.15)" : "hsla(46, 95%, 65%, 0.12)";
+  return {
+    id: `stardust-${index}`,
+    left: `${((index * 17) % 92) + 4}%`,
+    delay: `${-(index % 9) * 1.35}s`,
+    duration: `${8 + (index % 6) * 1.25}s`,
+    size: `${2 + (index % 4) * 0.75}px`,
+    color,
+  };
+});
+
 export function AmbientStardust() {
-  const [dots, setDots] = useState<StardustParticle[]>([]);
-  const particleIdRef = useRef(0);
-
-  useEffect(() => {
-    const initialDots: StardustParticle[] = Array.from({ length: 18 }).map(() => {
-      const isViolet = Math.random() > 0.5;
-      const color = isViolet ? "hsla(280, 75%, 65%, 0.15)" : "hsla(46, 95%, 65%, 0.12)";
-      return {
-        id: `stardust-${particleIdRef.current++}`,
-        left: `${5 + Math.random() * 90}%`,
-        delay: `${Math.random() * -12}s`,
-        duration: `${8 + Math.random() * 10}s`,
-        size: `${2 + Math.random() * 4}px`,
-        color,
-      };
-    });
-    setDots(initialDots);
-  }, []);
-
   return (
     <div className="ambient-stardust-container">
-      {dots.map((d) => (
+      {STARDUST_PARTICLES.map((d) => (
         <div
           key={d.id}
           className="stardust-particle"

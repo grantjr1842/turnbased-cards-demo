@@ -19,6 +19,7 @@ export const PlayerSchema = schema({
 });
 
 export const ChatMessageSchema = schema({
+  id: "string",
   sender: "string",
   text: "string",
   timestamp: "number",

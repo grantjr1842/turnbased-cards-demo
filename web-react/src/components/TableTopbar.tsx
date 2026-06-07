@@ -1,11 +1,15 @@
+import { memo } from "react";
 import { AudioSettingsPanel } from "./AudioSettingsPanel";
+import { ColorblindToggleButton } from "./ColorblindToggleButton";
 import { PingVisualizer } from "./PingVisualizer";
+import type { PlayDirection } from "../gameTypes";
+import { getPlayDirectionLabels } from "../gameHelpers";
 
 interface TableTopbarProps {
   roomCode: string;
   isMyTurn: boolean;
   currentPlayerLabel: string;
-  direction: number | undefined;
+  direction: PlayDirection;
   ping: number | null;
   colorblindMode: boolean;
   onToggleColorblind: () => void;
@@ -13,7 +17,7 @@ interface TableTopbarProps {
   onLeave: () => void;
 }
 
-export function TableTopbar({
+function TableTopbarBase({
   roomCode,
   isMyTurn,
   currentPlayerLabel,
@@ -24,44 +28,51 @@ export function TableTopbar({
   onShowRules,
   onLeave,
 }: TableTopbarProps) {
+  const { short: playOrderLabel, full: fullPlayOrderLabel } = getPlayDirectionLabels(direction);
+
   return (
     <header className="topbar">
       <div className="topbar-info">
-        <div className="topbar-stat">
+        <div className="topbar-stat topbar-room-code-stat">
           <span>Invite code</span>
           <strong>{roomCode}</strong>
         </div>
-        <div className="topbar-stat">
+        <div className="topbar-stat topbar-turn-status-stat">
           <span>Turn status</span>
-          <strong style={{ color: isMyTurn ? "var(--gold)" : "var(--text-primary)" }}>
+          <strong className={isMyTurn ? "turn-status-my-turn" : "turn-status-waiting"}>
             {isMyTurn ? "Your Turn!" : currentPlayerLabel}
           </strong>
         </div>
-        <div className="topbar-stat">
+        <div className="topbar-stat topbar-play-order-stat">
           <span>Play order</span>
-          <strong>{direction === -1 ? "Counter-Clockwise ◀" : "Clockwise ▶"}</strong>
+          <strong title={fullPlayOrderLabel}>
+            <span className="topbar-stat-label-full">{fullPlayOrderLabel}</span>
+            <span className="topbar-stat-label-short">{playOrderLabel}</span>
+          </strong>
         </div>
       </div>
 
       <div className="topbar-actions">
         <PingVisualizer ping={ping} />
         <AudioSettingsPanel />
+        <ColorblindToggleButton active={colorblindMode} onToggle={onToggleColorblind} variant="topbar" />
         <button
-          className={`ghost-btn ${colorblindMode ? "active-acc" : ""}`}
-          onClick={onToggleColorblind}
+          className="ghost-btn topbar-rules-btn"
+          data-testid="topbar-rules"
+          onClick={onShowRules}
           type="button"
-          title="Toggle colorblind accessibility symbols"
-          style={{ display: "flex", alignItems: "center", gap: "4px" }}
+          title="Open rules"
         >
-          ♿ {colorblindMode ? "CB: On" : "CB: Off"}
+          <span className="topbar-btn-label">Rules (?)</span>
+          <span className="topbar-btn-short">Rules</span>
         </button>
-        <button className="ghost-btn" data-testid="topbar-rules" onClick={onShowRules} type="button">
-          Rules (?)
-        </button>
-        <button className="ghost-btn" onClick={onLeave} type="button">
-          Leave Game
+        <button className="ghost-btn topbar-leave-btn" onClick={onLeave} type="button" title="Leave game">
+          <span className="topbar-btn-label">Leave Game</span>
+          <span className="topbar-btn-short">Leave</span>
         </button>
       </div>
     </header>
   );
 }
+
+export const TableTopbar = memo(TableTopbarBase);

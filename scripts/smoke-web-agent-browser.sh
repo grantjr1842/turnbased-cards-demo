@@ -8,11 +8,30 @@ SHOT_DIR="$ROOT_DIR/.tmp-agent-browser"
 SESSION="card-demo-smoke"
 APP_HOST="${APP_HOST:-127.0.0.1}"
 APP_PORT="${APP_PORT:-5173}"
-if [[ -n "${APP_URL+x}" ]]; then
-  APP_URL_PROVIDED=1
+pick_free_port() {
+  node -e "const net=require('node:net'); const s=net.createServer(); s.listen(0, '$APP_HOST', () => { const { port } = s.address(); console.log(port); s.close(); });"
+}
+
+url_port() {
+  node -e "const u = new URL(process.argv[1]); console.log(u.port || (u.protocol === 'https:' ? 443 : 80));" "$1"
+}
+
+if [[ -z "${API_URL+x}" ]]; then
+  API_PORT="$(pick_free_port)"
+  API_URL="http://${APP_HOST}:${API_PORT}"
+else
+  API_PORT="$(url_port "$API_URL")"
 fi
-APP_URL="${APP_URL:-http://${APP_HOST}:${APP_PORT}}"
-API_URL="${API_URL:-http://127.0.0.1:2567}"
+
+if [[ -z "${APP_URL+x}" ]]; then
+  APP_PORT="$(pick_free_port)"
+  while [[ "$APP_PORT" == "$API_PORT" ]]; do
+    APP_PORT="$(pick_free_port)"
+  done
+  APP_URL="http://${APP_HOST}:${APP_PORT}"
+fi
+
+VITE_WS_URL="${VITE_WS_URL:-${API_URL/http/ws}}"
 
 cleanup() {
   agent-browser --session "$SESSION" close --all >/dev/null 2>&1 || true
@@ -25,19 +44,13 @@ mkdir -p "$SHOT_DIR"
 
 cd "$SERVER_DIR"
 if ! curl --max-time 3 -fsS "$API_URL" >/dev/null 2>&1; then
-  npm run dev > /tmp/uno-server.log 2>&1 &
+  PORT="$API_PORT" npm run dev > /tmp/uno-server.log 2>&1 &
   SERVER_PID=$!
 fi
 
 cd "$CLIENT_DIR"
 if ! curl --max-time 3 -fsS "$APP_URL" >/dev/null 2>&1; then
-  if [[ -z "${APP_URL_PROVIDED:-}" && "$APP_URL" == "http://${APP_HOST}:5173" ]]; then
-    APP_PORT="$(
-      node -e "const s=require('node:net').createServer();s.listen(0,'${APP_HOST}',()=>{console.log(s.address().port);s.close();});"
-    )"
-    APP_URL="http://${APP_HOST}:${APP_PORT}"
-  fi
-  npm run dev -- --host "$APP_HOST" --port "$APP_PORT" --strictPort > /tmp/uno-web.log 2>&1 &
+  VITE_WS_URL="$VITE_WS_URL" npm run dev -- --host "$APP_HOST" --port "$APP_PORT" --strictPort > /tmp/uno-web.log 2>&1 &
   CLIENT_PID=$!
 fi
 
@@ -79,8 +92,10 @@ open_clean() {
 
 quick_game() {
   local name="$1"
+  agent-browser --session "$SESSION" wait --fn 'document.querySelector("input[placeholder=\"Enter your name\"]") !== null' --timeout 15000
   agent-browser --session "$SESSION" fill 'input[placeholder="Enter your name"]' "$name"
-  agent-browser --session "$SESSION" click '.primary-btn'
+  agent-browser --session "$SESSION" wait --fn 'document.querySelector(".primary-btn:not(:disabled)") !== null' --timeout 15000
+  agent-browser --session "$SESSION" click '.primary-btn:not(:disabled)'
   agent-browser --session "$SESSION" wait --fn 'document.querySelector(".game-shell") !== null'
   agent-browser --session "$SESSION" wait 1000
 }
@@ -109,6 +124,7 @@ exercise_overlay_states() {
   agent-browser --session "$SESSION" wait --fn 'document.querySelector(".drawer-content") !== null'
 
   echo "overlay-check: replay guide"
+  agent-browser --session "$SESSION" wait --fn 'document.querySelector("[data-testid=\"rules-replay-guide\"]") !== null'
   dom_click '[data-testid="rules-replay-guide"]'
   echo "overlay-check: tutorial visible"
   agent-browser --session "$SESSION" wait --fn 'document.querySelector(".first-game-guide") !== null'
@@ -213,7 +229,7 @@ simulate_play "desktop"
 agent-browser --session "$SESSION" record stop
 check_clean_browser "desktop"
 
-open_clean 390 844
+open_clean 360 800
 agent-browser --session "$SESSION" record start "$SHOT_DIR/mobile.webm"
 quick_game "SmokeMob"
 exercise_overlay_states

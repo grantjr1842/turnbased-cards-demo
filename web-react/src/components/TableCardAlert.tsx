@@ -48,38 +48,37 @@ function ChampionshipCrest({
   );
 }
 
+export type CardAlert =
+  | {
+      variant: "banner";
+      tone: "default" | "warning" | "success";
+      text: string;
+    }
+  | {
+      variant: "crest";
+      kind: "warning" | "success";
+      icon: string;
+      title: string;
+      subtitle: string;
+    };
+
 interface TableCardAlertProps {
-  cardAlert: string;
+  cardAlert: CardAlert;
 }
 
 export function TableCardAlert({ cardAlert }: TableCardAlertProps) {
   return (
-    <div className="card-alert-overlay">
-      {cardAlert.includes("CALLED UNO!") ? (
+    <div className="card-alert-overlay" role="status" aria-live="assertive" aria-atomic="true">
+      {cardAlert.variant === "crest" ? (
         <ChampionshipCrest
-          kind="success"
-          icon="🏆"
-          title={cardAlert.replace("🎉 ", "")}
-          subtitle="Uno Championship Honor"
-        />
-      ) : cardAlert.includes("HAS 1 CARD!") ? (
-        <ChampionshipCrest
-          kind="warning"
-          icon="⚠️"
-          title={cardAlert.replace("⚠️ ", "")}
-          subtitle="Single Card Alert"
+          kind={cardAlert.kind}
+          icon={cardAlert.icon}
+          title={cardAlert.title}
+          subtitle={cardAlert.subtitle}
         />
       ) : (
-        <div
-          className={`card-alert-banner ${
-            cardAlert.includes("⚠️") || cardAlert.includes("🔥")
-              ? "warning"
-              : cardAlert.includes("🎉")
-                ? "success"
-                : ""
-          }`}
-        >
-          <h2>{cardAlert}</h2>
+        <div className={`card-alert-banner ${cardAlert.tone}`}>
+          <h2>{cardAlert.text}</h2>
         </div>
       )}
     </div>

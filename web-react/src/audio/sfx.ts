@@ -1,24 +1,31 @@
 /* global OscillatorNode, GainNode */
+interface WindowWithWebkitAudioContext extends Window {
+  webkitAudioContext?: typeof AudioContext;
+}
+
 class SoundFX {
   private ctx: AudioContext | null = null;
   private volume = 0.5;
   private muted = false;
-  // eslint-disable-next-line no-undef
   private ambientOscs: OscillatorNode[] = [];
-  // eslint-disable-next-line no-undef
   private ambientGain: GainNode | null = null;
 
   private init() {
     if (this.ctx) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+    const browserWindow = window as WindowWithWebkitAudioContext;
+    const AudioContextClass = window.AudioContext || browserWindow.webkitAudioContext;
     if (AudioContextClass) {
       this.ctx = new AudioContextClass();
     }
   }
 
+  private normalizeVolume(vol: number) {
+    if (!Number.isFinite(vol)) return 0.5;
+    return Math.min(1, Math.max(0, vol));
+  }
+
   setVolume(vol: number) {
-    this.volume = vol;
+    this.volume = this.normalizeVolume(vol);
     this.updateAmbientVolume();
   }
 
@@ -143,8 +150,3 @@ class SoundFX {
 }
 
 export const sfx = new SoundFX();
-
-const savedVol = localStorage.getItem("uno_volume");
-if (savedVol !== null) sfx.setVolume(parseFloat(savedVol));
-const savedMuted = localStorage.getItem("uno_muted");
-if (savedMuted === "true") sfx.setMuted(true);

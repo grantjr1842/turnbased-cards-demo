@@ -58,9 +58,10 @@ After a round ends, a rematch vote button appears for all players. Clicking Vote
 ## Verification
 
 ```bash
+npm run test:unit
 npm run lint
 npm run build
 npm run test:smoke
 ```
 
-`npm run test:smoke` starts the server and client, exercises desktop and mobile browser sessions through `agent-browser`, and writes screenshots to `../.tmp-agent-browser/`.
+`npm run test:unit` runs the Node test suite over the extracted room helpers. `npm run test:smoke` starts the server and client, exercises desktop and mobile browser sessions through `agent-browser`, and writes screenshots to `../.tmp-agent-browser/`.

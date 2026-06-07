@@ -7,6 +7,7 @@ export interface Toast {
 }
 
 export type UnoColor = "red" | "yellow" | "green" | "blue";
+export type PlayDirection = 1 | -1;
 
 export interface CardSchema {
   id: string;
@@ -27,6 +28,7 @@ export interface PlayerSchema {
 }
 
 export interface ChatMessageSchema {
+  id: string;
   sender: string;
   text: string;
   timestamp: number;
@@ -38,7 +40,7 @@ export interface UnoState {
   drawPileCount?: number;
   deckCount?: number;
   currentPlayer?: number;
-  direction?: number;
+  direction?: PlayDirection;
   activeColor?: string;
   pendingDraw?: number;
   winner?: number;

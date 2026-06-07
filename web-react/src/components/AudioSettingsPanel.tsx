@@ -1,24 +1,9 @@
-import { useState } from "react";
-import type { ChangeEvent, CSSProperties } from "react";
-import { sfx } from "../audio/sfx";
+import type { CSSProperties } from "react";
+import { useAudioPreferences } from "../hooks/useAudioPreferences";
 
 function AudioSettingsPanel() {
-  const [vol, setVol] = useState(() => sfx.getVolume());
-  const [muted, setMuted] = useState(() => sfx.isMuted());
-
-  const handleVolChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(event.target.value);
-    setVol(value);
-    sfx.setVolume(value);
-    localStorage.setItem("uno_volume", String(value));
-  };
-
-  const handleMuteToggle = () => {
-    const isMutedNow = !muted;
-    setMuted(isMutedNow);
-    sfx.setMuted(isMutedNow);
-    localStorage.setItem("uno_muted", isMutedNow ? "true" : "false");
-  };
+  const { handleMuteToggle, handleVolumeChange, isMuted, playTestSound, volume } =
+    useAudioPreferences();
 
   return (
     <div className="audio-controls-panel">
@@ -26,9 +11,11 @@ function AudioSettingsPanel() {
         className="audio-btn-toggle"
         onClick={handleMuteToggle}
         type="button"
-        aria-label="Toggle Mute"
+        aria-pressed={isMuted}
+        aria-label={isMuted ? "Unmute audio" : "Mute audio"}
+        title={isMuted ? "Unmute audio" : "Mute audio"}
       >
-        {muted || vol === 0 ? "🔇" : "🔊"}
+        {isMuted ? "🔇" : "🔊"}
       </button>
       <div className="volume-slider-container">
         <input
@@ -36,19 +23,20 @@ function AudioSettingsPanel() {
           min="0"
           max="1"
           step="0.05"
-          value={vol}
-          onChange={handleVolChange}
+          value={volume}
+          onChange={handleVolumeChange}
           className="volume-slider"
           aria-label="Volume level"
-          style={{ "--vol-val": `${vol * 100}%` } as CSSProperties}
+          style={{ "--vol-val": `${volume * 100}%` } as CSSProperties}
         />
-        <span>{Math.round(vol * 100)}%</span>
+        <span>{Math.round(volume * 100)}%</span>
       </div>
       <button
-        className="ghost-btn"
-        style={{ height: "32px", fontSize: "11px", padding: "0 8px" }}
-        onClick={() => sfx.playPluck()}
+        className="ghost-btn audio-test-btn"
+        onClick={playTestSound}
         type="button"
+        aria-label="Test sound"
+        title="Test sound"
       >
         Test Sound
       </button>

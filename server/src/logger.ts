@@ -7,7 +7,16 @@ const LEVEL_PRIORITY: Record<LogLevel, number> = {
   error: 3,
 };
 
-const currentLevel = (process.env.LOG_LEVEL as LogLevel) || "info";
+const DEFAULT_LEVEL: LogLevel = "info";
+
+function normalizeLogLevel(value: string | undefined): LogLevel {
+  if (value === "debug" || value === "info" || value === "warn" || value === "error") {
+    return value;
+  }
+  return DEFAULT_LEVEL;
+}
+
+const currentLevel = normalizeLogLevel(process.env.LOG_LEVEL);
 
 function shouldLog(level: LogLevel): boolean {
   return LEVEL_PRIORITY[level] >= LEVEL_PRIORITY[currentLevel];
@@ -15,8 +24,16 @@ function shouldLog(level: LogLevel): boolean {
 
 function formatMessage(level: LogLevel, namespace: string, message: string, meta?: Record<string, unknown>): string {
   const timestamp = new Date().toISOString();
-  const metaStr = meta ? ` ${JSON.stringify(meta)}` : "";
+  const metaStr = meta ? ` ${safeStringify(meta)}` : "";
   return `[${timestamp}] [${level.toUpperCase()}] [${namespace}] ${message}${metaStr}`;
+}
+
+function safeStringify(value: Record<string, unknown>): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return '{"_meta":"unserializable"}';
+  }
 }
 
 export const logger = {

@@ -28,7 +28,7 @@ export function TableRulesDrawer({
       >
         <div className="drawer-header">
           <h2 id="rules-drawer-title">Rules & Shortcuts</h2>
-          <div style={{ display: "flex", gap: "8px" }}>
+          <div className="drawer-actions">
             <button className="ghost-btn" data-testid="rules-replay-guide" onClick={onReplayGuide} type="button">
               Replay guide
             </button>
@@ -37,73 +37,64 @@ export function TableRulesDrawer({
             </button>
           </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
+        <div className="drawer-stack">
           <section>
-            <h3 style={{ color: "var(--gold)", marginBottom: "8px" }}>Keyboard Shortcuts</h3>
-            <ul
-              style={{
-                listStyle: "none",
-                paddingLeft: 0,
-                display: "flex",
-                flexDirection: "column",
-                gap: "8px",
-                fontSize: "13px",
-              }}
-            >
+            <h3 className="drawer-section-title">Keyboard Shortcuts</h3>
+            <ul className="shortcut-list">
               <li>
-                <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>◀</kbd>
+                <kbd className="shortcut-kbd">◀</kbd>
                 /{" "}
-                <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>▶</kbd>{" "}
+                <kbd className="shortcut-kbd">▶</kbd>{" "}
                 Select Cards
               </li>
               <li>
-                <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>Space</kbd>
+                <kbd className="shortcut-kbd">Space</kbd>
                 /{" "}
-                <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>Enter</kbd>{" "}
+                <kbd className="shortcut-kbd">Enter</kbd>{" "}
                 Play Selected Card
               </li>
               <li>
-                <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>D</kbd>{" "}
+                <kbd className="shortcut-kbd">D</kbd>{" "}
                 Draw Card from deck
               </li>
               <li>
-                <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>U</kbd>{" "}
+                <kbd className="shortcut-kbd">U</kbd>{" "}
                 Call UNO!
               </li>
               <li>
-                <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>C</kbd>{" "}
+                <kbd className="shortcut-kbd">C</kbd>{" "}
                 Open & Focus Chat input
               </li>
               <li>
-                <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>R</kbd>{" "}
+                <kbd className="shortcut-kbd">R</kbd>{" "}
                 /{" "}
-                <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>Y</kbd>{" "}
+                <kbd className="shortcut-kbd">Y</kbd>{" "}
                 /{" "}
-                <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>G</kbd>{" "}
+                <kbd className="shortcut-kbd">G</kbd>{" "}
                 /{" "}
-                <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>B</kbd>{" "}
+                <kbd className="shortcut-kbd">B</kbd>{" "}
                 Select Wild Color (Red/Yellow/Green/Blue)
               </li>
               <li>
-                <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>Esc</kbd>{" "}
+                <kbd className="shortcut-kbd">Esc</kbd>{" "}
                 Cancel Wild Color selection
               </li>
               <li>
-                <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>?</kbd>{" "}
+                <kbd className="shortcut-kbd">?</kbd>{" "}
                 Open/Close Rules Drawer
               </li>
             </ul>
           </section>
 
           <section>
-            <h3 style={{ color: "var(--gold)", marginBottom: "8px" }}>Wild Table UNO Rules</h3>
-            <p style={{ fontSize: "13px", lineHeight: "1.6", color: "var(--text-muted)" }}>
+            <h3 className="drawer-section-title">Wild Table UNO Rules</h3>
+            <p className="drawer-copy">
               Match the top card of the discard pile by color or rank. When you have exactly one
               card left in hand, you MUST click the <strong>UNO!</strong> button (or press{" "}
               <kbd>U</kbd>) before playing your second-to-last card. Failing to do so triggers a{" "}
               <strong>2-card draw penalty</strong>!
             </p>
-            <p style={{ fontSize: "13px", lineHeight: "1.6", color: "var(--text-muted)", marginTop: "8px" }}>
+            <p className="drawer-copy drawer-copy-spaced">
               <strong>Draw Stacking:</strong> Draw-2 and Wild Draw-4 cards accumulate pending
               draw values. Draw stack triggers must be drawn unless stacked further with another
               matching draw card.
@@ -111,7 +102,7 @@ export function TableRulesDrawer({
           </section>
 
           <section>
-            <h3 style={{ color: "var(--gold)", marginBottom: "8px" }}>Action Card Guide</h3>
+            <h3 className="drawer-section-title">Action Card Guide</h3>
             <p className="rule-guide-intro">
               Number cards match by color or number. These illustrated cards change the turn:
             </p>

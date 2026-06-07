@@ -1,39 +1,38 @@
+import { memo } from "react";
 import type { CSSProperties } from "react";
-import { useMemo } from "react";
-import type { Room } from "@colyseus/sdk";
 import { AvatarIcon } from "./AvatarIcon";
-import type { PlayerSchema, UnoState } from "../gameTypes";
+import type { PlayerSchema } from "../gameTypes";
 import { parsePlayerName } from "../gameHelpers";
 
+const PODIUM_COINS = Array.from({ length: 30 }, (_, i) => ({
+  id: `coin-${i}`,
+  left: `${((i * 17) % 100) + 0.5}%`,
+  delay: `${(i % 8) * 0.35}s`,
+  duration: `${3 + (i % 5) * 0.4}s`,
+  size: `${14 + (i % 8) * 2}px`,
+}));
+
 interface WinnerPodiumProps {
-  room: Room<UnoState> | null;
-  state: UnoState | null;
-  players: PlayerSchema[];
-  winnerSeat: number;
+  rematchVotes: number[];
+  connectedHumanPlayers: PlayerSchema[];
+  winnerPlayer: PlayerSchema | null;
   meSeatIndex: number | undefined;
+  onVoteRematch: () => void;
 }
 
-export function WinnerPodium({ room, state, players, winnerSeat, meSeatIndex }: WinnerPodiumProps) {
-  const winner = players.find((p) => p.seatIndex === winnerSeat);
-  const winAv = winner ? parsePlayerName(winner.name) : null;
-  const votes = state?.rematchVotes ?? [];
-  const humans = players.filter((p) => !p.isBot && p.connected);
-
-  const coins = useMemo(
-    () =>
-      Array.from({ length: 30 }).map((_, i) => ({
-        id: `coin-${i}`,
-        left: `${Math.random() * 100}%`,
-        delay: `${Math.random() * 4}s`,
-        duration: `${3 + Math.random() * 3}s`,
-        size: `${14 + Math.random() * 16}px`,
-      })),
-    [],
-  );
+function WinnerPodiumBase({
+  rematchVotes,
+  connectedHumanPlayers,
+  winnerPlayer,
+  meSeatIndex,
+  onVoteRematch,
+}: WinnerPodiumProps) {
+  const winAv = winnerPlayer ? parsePlayerName(winnerPlayer.name) : null;
+  const voteSet = new Set(rematchVotes);
 
   return (
     <div className="winner-podium-overlay">
-      {coins.map((coin) => (
+      {PODIUM_COINS.map((coin) => (
         <div
           key={coin.id}
           className="gold-coin-particle"
@@ -87,34 +86,27 @@ export function WinnerPodium({ room, state, players, winnerSeat, meSeatIndex }: 
             </svg>
             {winAv && <AvatarIcon symbol={winAv.symbol} theme={winAv.theme} size={84} glow />}
           </div>
-          <h1 style={{ marginTop: "16px", fontSize: "26px", color: "var(--gold)", fontWeight: 900 }}>
+          <h1 className="winner-podium-title">
             {winAv?.name} Wins!
           </h1>
-          <p style={{ color: "var(--text-muted)", fontSize: "13px", marginTop: "4px" }}>
+          <p className="winner-podium-subtitle">
             Ultimate Card Champion
           </p>
         </div>
 
         <div className="rematch-voters-list">
-          <h3
-            style={{
-              color: "var(--text-muted)",
-              fontSize: "11px",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              marginBottom: "8px",
-            }}
-          >
-            Rematch Votes ({votes.length} / {humans.length})
+          <h3 className="rematch-votes-title">
+            Rematch Votes ({rematchVotes.length} / {connectedHumanPlayers.length})
           </h3>
-          {humans.map((player) => {
-            const voted = votes.includes(player.seatIndex);
+          {connectedHumanPlayers.map((player) => {
+            const playerAv = parsePlayerName(player.name);
+            const voted = voteSet.has(player.seatIndex);
             return (
               <div className="rematch-voter-row" key={player.sessionId}>
                 <span>
-                  {parsePlayerName(player.name).name} {player.seatIndex === meSeatIndex ? "(You)" : ""}
+                  {playerAv.name} {player.seatIndex === meSeatIndex ? "(You)" : ""}
                 </span>
-                <strong style={{ color: voted ? "#4da66d" : "var(--text-faint)" }}>
+                <strong className={voted ? "ready" : "waiting"}>
                   {voted ? "READY ✅" : "WAITING... ⏳"}
                 </strong>
               </div>
@@ -122,10 +114,12 @@ export function WinnerPodium({ room, state, players, winnerSeat, meSeatIndex }: 
           })}
         </div>
 
-        <button className="primary-btn" style={{ width: "100%" }} onClick={() => room?.send("vote_rematch")} type="button">
+        <button className="primary-btn vote-rematch-btn" onClick={onVoteRematch} type="button">
           Vote Rematch
         </button>
       </div>
     </div>
   );
 }
+
+export const WinnerPodium = memo(WinnerPodiumBase);

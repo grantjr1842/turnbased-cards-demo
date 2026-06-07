@@ -72,17 +72,17 @@ Each seat is handled independently. The game continues as long as at least one b
 
 ### wild_draw4 played illegally
 
-The server enforces the rule: if a player has a matching color or value, they cannot play `wild_draw4`. This is checked server-side and the play is rejected silently.
+The server enforces the rule: if a player has a matching color or value, they cannot play `wild_draw4`. This is checked server-side, and the client shows visible feedback when the play is rejected.
 
 ---
 
 ## Performance
 
-### High latency in 3D rendering
+### High latency in a client
 
 1. Enable the FPS counter (top-right corner)
 2. If FPS < 30, try reducing window size
-3. Three.js bundle is large (724KB) — this is expected for 3D WebGL games
+3. If you are troubleshooting a different frontend implementation, check that client's README and build output for its current rendering stack and bundle size expectations
 
 ### Memory leak symptoms
 

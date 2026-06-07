@@ -1,77 +1,71 @@
+import { forwardRef, memo } from "react";
 import type { CSSProperties, RefObject } from "react";
 import { HandCardItem } from "./HandCardItem";
-import type { CardSchema, UnoColor, UnoState } from "../gameTypes";
-import { isPlayable } from "../gameHelpers";
-
-type ActionCallout =
-  | {
-      kind: "uno";
-      title: string;
-      text: string;
-    }
-  | {
-      kind: "penalty";
-      title: string;
-      text: string;
-    }
-  | null;
+import type { GuidanceState } from "./tableRoomHand";
+import type { CardSchema, UnoColor } from "../gameTypes";
+import { getActionCalloutLabel, type ActionCallout } from "./tableRoomHand";
+import { HAND_DOCK_ANCHOR_ID, type ActionBubble } from "./tableRoomModel";
 
 interface HandDockProps {
-  room: { send: (type: string, payload?: unknown) => void } | null;
-  state: UnoState | null;
-  meSeatIndex: number | undefined;
   isMyTurn: boolean;
+  emptyHandLabel: string;
+  showUnoButton: boolean;
+  onCallUno: () => void;
   actionCallout: ActionCallout;
   guidanceText: string;
-  guidanceStatus: string;
   sortBy: "none" | "color" | "value";
   setSortBy: (value: "none" | "color" | "value") => void;
-  actionBubbleLocal: { text: string; themeColor: string } | undefined;
+  actionBubbleLocal: ActionBubble | undefined;
   hand: CardSchema[];
+  playableCardIds: ReadonlySet<string>;
   handCount: number;
   handMid: number;
   dynamicFanAngle: number;
   dynamicFanOffset: number;
   dynamicMarginValue: string;
-  selectedCardIdx: number;
-  setSelectedCardIdx: (idx: number) => void;
+  selectedCardId: string | null;
+  setSelectedCardId: (cardId: string | null) => void;
   playCard: (card: CardSchema, color?: UnoColor) => void;
   onUnplayableTap: (card: CardSchema) => void;
   scrollHand: (direction: "left" | "right") => void;
   handScrollRef: RefObject<HTMLDivElement | null>;
-  showToast: (message: string, kind?: "info" | "success" | "warning" | "error") => void;
   colorblindMode: boolean;
+  guidanceStatus: GuidanceState["guidanceStatus"];
 }
 
-export function TableHandDock({
-  room,
-  state,
-  meSeatIndex,
-  isMyTurn,
-  actionCallout,
-  guidanceText,
-  guidanceStatus,
-  sortBy,
-  setSortBy,
-  actionBubbleLocal,
-  hand,
-  handCount,
-  handMid,
-  dynamicFanAngle,
-  dynamicFanOffset,
-  dynamicMarginValue,
-  selectedCardIdx,
-  setSelectedCardIdx,
-  playCard,
-  onUnplayableTap,
-  scrollHand,
-  handScrollRef,
-  showToast,
-  colorblindMode,
-}: HandDockProps) {
+const TableHandDockBase = forwardRef<HTMLElement, HandDockProps>(function TableHandDock(
+  {
+    isMyTurn,
+    emptyHandLabel,
+    showUnoButton,
+    actionCallout,
+    guidanceText,
+    guidanceStatus,
+    sortBy,
+    setSortBy,
+    actionBubbleLocal,
+    hand,
+    playableCardIds,
+    handCount,
+    handMid,
+    dynamicFanAngle,
+    dynamicFanOffset,
+    dynamicMarginValue,
+    selectedCardId,
+    setSelectedCardId,
+    playCard,
+    onUnplayableTap,
+    scrollHand,
+    handScrollRef,
+    colorblindMode,
+    onCallUno,
+  },
+  ref,
+) {
   return (
     <section
-      id="hand-dock"
+      id={HAND_DOCK_ANCHOR_ID}
+      ref={ref}
       className={`hand-dock ${isMyTurn ? "my-turn" : ""}`}
       aria-label="Your hand cards dock"
     >
@@ -81,7 +75,7 @@ export function TableHandDock({
           data-action-kind={actionCallout.kind}
           role="status"
         >
-          <span>{actionCallout.kind === "uno" ? "Action required" : "Draw stack active"}</span>
+          <span>{getActionCalloutLabel(actionCallout)}</span>
           <strong>{actionCallout.title}</strong>
           <small>{actionCallout.text}</small>
         </div>
@@ -101,24 +95,42 @@ export function TableHandDock({
 
         <div className="hand-header-actions">
           <div className="sort-row">
-            <button className={`sort-btn ${sortBy === "none" ? "active" : ""}`} onClick={() => setSortBy("none")} type="button">
-              Default
+            <button
+              className={`sort-btn ${sortBy === "none" ? "active" : ""}`}
+              onClick={() => setSortBy("none")}
+              type="button"
+              aria-label="Sort hand by default"
+              title="Sort hand by default"
+            >
+              <span className="sort-btn-label">Default</span>
+              <span className="sort-btn-short">Def</span>
             </button>
-            <button className={`sort-btn ${sortBy === "color" ? "active" : ""}`} onClick={() => setSortBy("color")} type="button">
-              Color
+            <button
+              className={`sort-btn ${sortBy === "color" ? "active" : ""}`}
+              onClick={() => setSortBy("color")}
+              type="button"
+              aria-label="Sort hand by color"
+              title="Sort hand by color"
+            >
+              <span className="sort-btn-label">Color</span>
+              <span className="sort-btn-short">Col</span>
             </button>
-            <button className={`sort-btn ${sortBy === "value" ? "active" : ""}`} onClick={() => setSortBy("value")} type="button">
-              Rank
+            <button
+              className={`sort-btn ${sortBy === "value" ? "active" : ""}`}
+              onClick={() => setSortBy("value")}
+              type="button"
+              aria-label="Sort hand by rank"
+              title="Sort hand by rank"
+            >
+              <span className="sort-btn-label">Rank</span>
+              <span className="sort-btn-short">Rnk</span>
             </button>
           </div>
 
-          {state?.unoCaller === meSeatIndex && (
+          {showUnoButton && (
             <button
               className="uno-btn"
-              onClick={() => {
-                room?.send("uno");
-                showToast("UNO called successfully!", "success");
-              }}
+              onClick={onCallUno}
               type="button"
             >
               UNO!
@@ -127,7 +139,7 @@ export function TableHandDock({
         </div>
       </div>
 
-      <div style={{ position: "relative", width: "100%" }}>
+      <div className="hand-scroll-frame">
         {handCount > 5 && (
           <button className="scroll-indicator-btn left" onClick={() => scrollHand("left")} type="button">
             ◀
@@ -135,11 +147,11 @@ export function TableHandDock({
         )}
         <div className="hand-scroll-wrapper" ref={handScrollRef}>
           {handCount === 0 ? (
-            <p className="empty-hand">{state ? "Dealing initial cards..." : "Spectating Table"}</p>
+            <p className="empty-hand">{emptyHandLabel}</p>
           ) : (
             hand.map((card, idx) => {
-              const playable = isMyTurn && isPlayable(card, state, hand);
-              const isSelected = idx === selectedCardIdx;
+              const playable = isMyTurn && playableCardIds.has(card.id);
+              const isSelected = card.id === selectedCardId;
               return (
                 <HandCardItem
                   key={card.id}
@@ -152,7 +164,7 @@ export function TableHandDock({
                   isSelected={isSelected}
                   colorblindMode={colorblindMode}
                   dynamicMarginValue={dynamicMarginValue}
-                  setSelectedCardIdx={setSelectedCardIdx}
+                  setSelectedCardId={setSelectedCardId}
                   playCard={playCard}
                   onUnplayableTap={onUnplayableTap}
                 />
@@ -168,4 +180,6 @@ export function TableHandDock({
       </div>
     </section>
   );
-}
+});
+
+export const TableHandDock = memo(TableHandDockBase);

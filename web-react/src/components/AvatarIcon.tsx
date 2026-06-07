@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { AVATAR_SYMBOLS, AVATAR_THEMES } from "../tableConfig";
+import { AVATAR_SYMBOLS, AVATAR_SYMBOLS_BY_ID, AVATAR_THEMES, AVATAR_THEMES_BY_ID } from "../tableConfig";
 
 interface AvatarIconProps {
   symbol: string;
@@ -10,8 +10,8 @@ interface AvatarIconProps {
 }
 
 export function AvatarIcon({ symbol, theme, size = 48, glow = true, overrideEmoji }: AvatarIconProps) {
-  const symInfo = AVATAR_SYMBOLS.find((s) => s.id === symbol) || AVATAR_SYMBOLS[0];
-  const themeInfo = AVATAR_THEMES.find((t) => t.id === theme) || AVATAR_THEMES[0];
+  const symInfo = AVATAR_SYMBOLS_BY_ID.get(symbol) || AVATAR_SYMBOLS[0];
+  const themeInfo = AVATAR_THEMES_BY_ID.get(theme) || AVATAR_THEMES[0];
   const emojiToRender = overrideEmoji || symInfo.emoji;
 
   return (

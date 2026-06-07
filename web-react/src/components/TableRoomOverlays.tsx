@@ -1,35 +1,38 @@
+import { memo } from "react";
 import type { RefObject } from "react";
 import type { CardSchema, UnoColor } from "../gameTypes";
-import { TableCardAlert } from "./TableCardAlert";
+import { TableCardAlert, type CardAlert } from "./TableCardAlert";
 import { TableReverseSweep } from "./TableReverseSweep";
 import { TableRulesDrawer } from "./TableRulesDrawer";
-import { TableTurnBanner, type TurnBanner } from "./TableTurnBanner";
+import { TableTurnBanner } from "./TableTurnBanner";
+import type { TurnBanner } from "./tableRoomOverlayFlow";
 import { TableTutorialGuide, type TutorialCard } from "./TableTutorialGuide";
 import { TableWildColorModal } from "./TableWildColorModal";
+import type { PlayDirection } from "../gameTypes";
 
 interface TableRoomOverlaysProps {
   colorblindMode: boolean;
-  cardAlert: string | null;
+  cardAlert: CardAlert | null;
   showRules: boolean;
   onCloseRules: () => void;
   onReplayGuide: () => void;
   rulesDialogRef: RefObject<HTMLDivElement | null>;
   tutorial: TutorialCard | null;
   tutorialStep: number;
-  tutorialCount: number;
+  isLastTutorialStep: boolean;
   tutorialDialogRef: RefObject<HTMLElement | null>;
   onCloseTutorial: () => void;
   onAdvanceTutorial: () => void;
   turnBanner: TurnBanner | null;
   showReverseSweep: boolean;
-  direction: number | undefined;
+  direction: PlayDirection;
   wildFor: CardSchema | null;
   onCloseWild: () => void;
   onSelectWildColor: (color: UnoColor) => void;
   wildDialogRef: RefObject<HTMLDivElement | null>;
 }
 
-export function TableRoomOverlays({
+function TableRoomOverlaysBase({
   colorblindMode,
   cardAlert,
   showRules,
@@ -38,7 +41,7 @@ export function TableRoomOverlays({
   rulesDialogRef,
   tutorial,
   tutorialStep,
-  tutorialCount,
+  isLastTutorialStep,
   tutorialDialogRef,
   onCloseTutorial,
   onAdvanceTutorial,
@@ -67,7 +70,7 @@ export function TableRoomOverlays({
         <TableTutorialGuide
           tutorial={tutorial}
           tutorialStep={tutorialStep}
-          tutorialCount={tutorialCount}
+          isLastTutorialStep={isLastTutorialStep}
           tutorialDialogRef={tutorialDialogRef}
           onCloseTutorial={onCloseTutorial}
           onAdvanceTutorial={onAdvanceTutorial}
@@ -83,3 +86,5 @@ export function TableRoomOverlays({
     </>
   );
 }
+
+export const TableRoomOverlays = memo(TableRoomOverlaysBase);

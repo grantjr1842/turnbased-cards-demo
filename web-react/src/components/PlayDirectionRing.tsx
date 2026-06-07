@@ -1,12 +1,14 @@
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
+import type { PlayDirection } from "../gameTypes";
+import { isCounterClockwise } from "../gameHelpers";
 
 interface PlayDirectionRingProps {
-  direction: number;
+  direction: PlayDirection;
 }
 
 export function PlayDirectionRing({ direction }: PlayDirectionRingProps) {
-  const isClockwise = direction !== -1;
+  const isClockwise = !isCounterClockwise(direction);
   const [isFlipping, setIsFlipping] = useState(false);
   const prevDirection = useRef(direction);
 

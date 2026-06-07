@@ -78,8 +78,10 @@ agent-browser --session "$SESSION" set viewport 1280 720
 agent-browser --session "$SESSION" wait --load networkidle
 
 echo "Joining game as 'Antigravity'..."
+agent-browser --session "$SESSION" wait --fn 'document.querySelector("input[placeholder=\"Enter your name\"]") !== null' --timeout 15000
 agent-browser --session "$SESSION" fill 'input[placeholder="Enter your name"]' "Antigravity"
-agent-browser --session "$SESSION" click '.primary-btn'
+agent-browser --session "$SESSION" wait --fn 'document.querySelector(".primary-btn:not(:disabled)") !== null' --timeout 15000
+agent-browser --session "$SESSION" click '.primary-btn:not(:disabled)'
 agent-browser --session "$SESSION" wait --fn 'document.querySelector(".game-shell") !== null'
 sleep 2
 

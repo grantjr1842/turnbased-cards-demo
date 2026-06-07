@@ -346,4 +346,4 @@ When a player reconnects:
 
 ## Rate Limiting
 
-Each player session is limited to 1 game action per `ACTION_COOLDOWN_MS` (default 300ms). Excess messages are silently dropped server-side.
+Each player session is limited to 1 game action per `ACTION_COOLDOWN_MS` (default 300ms). Excess messages are still rejected server-side, and the React client surfaces visible feedback for action errors.

@@ -10,13 +10,14 @@ This is a Vite + React client for the UNO demo. The main app lives in `src/main.
 - `npm run lint` - run `oxlint` across the codebase.
 - `npm run format` - rewrite files with `oxfmt`.
 - `npm run preview` - serve the production build locally.
-- `npm run test:smoke` - run the browser smoke script in `../scripts/smoke-web-agent-browser.sh`; the game server should be running on port `2567`.
+- `npm run test:unit` - run the Node test suite over extracted room helpers and shared logic.
+- `npm run test:smoke` - run the browser smoke script in `../scripts/smoke-web-agent-browser.sh`; it starts the server and client itself, derives `VITE_WS_URL` from the chosen API URL, and accepts `API_URL` / `APP_URL` overrides when needed.
 
 ## Coding Style & Naming Conventions
 Use TypeScript with `strict` mode enabled. Prefer functional React components, explicit types for state and schema objects, and keep imports organized. Follow the existing naming pattern: PascalCase for components/types, camelCase for variables/functions, and `*.tsx` for UI modules. Formatting is handled by `oxfmt`; lint issues should be resolved with `oxlint` rather than suppressed unless a browser/API quirk requires a targeted exception.
 
 ## Testing Guidelines
-There is no dedicated unit-test suite in this client. Treat `npm run build`, `npm run lint`, and `npm run test:smoke` as the required verification path for meaningful changes. When adding behavior, validate the relevant interaction manually in the browser and prefer clear testable states over implicit UI behavior.
+Treat `npm run test:unit`, `npm run build`, `npm run lint`, and `npm run test:smoke` as the required verification path for meaningful changes. When adding behavior, validate the relevant interaction manually in the browser and prefer clear testable states over implicit UI behavior.
 
 ## Commit & Pull Request Guidelines
 Recent commits use short conventional prefixes such as `feat:`, `fix:`, and `chore:` with an optional scope, for example `feat(GameScene): ...`. Keep commit messages imperative and focused on one change. Pull requests should summarize the user-visible impact, call out any server/shared changes, and include screenshots or short screen recordings for UI work. Note the commands you ran for verification.
