@@ -6,7 +6,7 @@ export const HAND_SIZE = 7;
 export const HUMAN_TURN_TIMEOUT_MS = 7000;
 
 /** Delay before bot takes its turn (ms). */
-export const BOT_TURN_DELAY_MS = 800;
+export const BOT_TURN_DELAY_MS = 3500;
 
 /** Minimum interval between game actions per player (ms) — for rate limiting. */
 export const ACTION_COOLDOWN_MS = 300;

@@ -521,10 +521,12 @@ export function useTableRoomController(props: TableRoomControllerProps) {
     playersSnapshot.forEach((p) => {
       if (p.isBot) {
         const cardCount = p.handCount ?? p.hand?.length ?? 0;
-        if (cardCount === 1) {
-          setBotEmotions((prev) => ({ ...prev, [p.seatIndex]: "😰" }));
-        } else if (cardCount === 2) {
-          setBotEmotions((prev) => ({ ...prev, [p.seatIndex]: "😬" }));
+        const target = cardCount === 1 ? "😰" : cardCount === 2 ? "😬" : undefined;
+        if (target) {
+          setBotEmotions((prev) => {
+            if (prev[p.seatIndex] === target) return prev;
+            return { ...prev, [p.seatIndex]: target };
+          });
         }
       }
     });

@@ -5,6 +5,9 @@ import { analyzer } from "vite-bundle-analyzer";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   base: process.env.BASE_URL || "/",
+  server: {
+    allowedHosts: ["uno.mystack.dev"],
+  },
   plugins: [
     react({
       // React compiler disabled for debugging
