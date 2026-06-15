@@ -1,22 +1,25 @@
 import type { CSSProperties } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 interface TurnTimerRingProps {
   active: boolean;
   turnDeadline: number | undefined;
 }
 
+const RADIUS = 22;
+const CIRC = 2 * Math.PI * RADIUS;
+
 export function TurnTimerRing({ active, turnDeadline }: TurnTimerRingProps) {
-  const [pct, setPct] = useState(100);
-  const [critical, setCritical] = useState(false);
-  const lastUpdate = useRef(0);
-  const deadlineRef = useRef(turnDeadline);
-  deadlineRef.current = turnDeadline;
+  const circleRef = useRef<SVGCircleElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
     if (!active || !turnDeadline) {
-      setPct(0);
-      setCritical(false);
+      if (circleRef.current) {
+        circleRef.current.style.strokeDashoffset = `${CIRC}`;
+        circleRef.current.style.stroke = "var(--gold)";
+      }
+      if (svgRef.current) svgRef.current.classList.remove("critical");
       return;
     }
 
@@ -26,14 +29,16 @@ export function TurnTimerRing({ active, turnDeadline }: TurnTimerRingProps) {
     let frame: number;
     const update = () => {
       const now = Date.now();
-      const remaining = (deadlineRef.current ?? 0) - now;
-      const newPct = Math.max(0, Math.min(100, (remaining / total) * 100));
+      const remaining = turnDeadline - now;
+      const pct = Math.max(0, Math.min(100, (remaining / total) * 100));
       const isCritical = remaining < 2500;
 
-      if (now - lastUpdate.current > 80 || newPct <= 0) {
-        lastUpdate.current = now;
-        setPct(newPct);
-        setCritical(isCritical);
+      if (circleRef.current) {
+        circleRef.current.style.strokeDashoffset = `${CIRC - (pct / 100) * CIRC}`;
+        circleRef.current.style.stroke = isCritical ? "var(--card-red)" : "var(--gold)";
+      }
+      if (svgRef.current) {
+        svgRef.current.classList.toggle("critical", isCritical);
       }
 
       if (remaining > 0) {
@@ -48,13 +53,11 @@ export function TurnTimerRing({ active, turnDeadline }: TurnTimerRingProps) {
   if (!active) return null;
 
   const strokeWidth = 3;
-  const radius = 22;
-  const circ = 2 * Math.PI * radius;
-  const offset = circ - (pct / 100) * circ;
 
   return (
     <svg
-      className={`turn-timer-svg ${critical ? "critical" : ""}`}
+      ref={svgRef}
+      className="turn-timer-svg"
       width="52"
       height="52"
       viewBox="0 0 52 52"
@@ -62,22 +65,23 @@ export function TurnTimerRing({ active, turnDeadline }: TurnTimerRingProps) {
       <circle
         cx="26"
         cy="26"
-        r={radius}
+        r={RADIUS}
         className="turn-timer-track"
         fill="none"
         stroke="rgba(255, 255, 255, 0.05)"
         strokeWidth={strokeWidth}
       />
       <circle
+        ref={circleRef}
         cx="26"
         cy="26"
-        r={radius}
+        r={RADIUS}
         className="turn-timer-progress"
         fill="none"
-        stroke={critical ? "var(--card-red)" : "var(--gold)"}
+        stroke="var(--gold)"
         strokeWidth={strokeWidth}
-        strokeDasharray={circ}
-        strokeDashoffset={offset}
+        strokeDasharray={CIRC}
+        strokeDashoffset={CIRC}
         transform="rotate(-90 26 26)"
         style={{ transition: "stroke-dashoffset 0.1s linear, stroke 0.2s ease" } as CSSProperties}
       />
