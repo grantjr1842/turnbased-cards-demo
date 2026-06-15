@@ -39,6 +39,7 @@ jobs:
         working-directory: web-react
         run: npm ci
       - name: Check PNG compression ratio
+        working-directory: web-react
         run: ../scripts/check-png-compression.sh
 
   lint:
