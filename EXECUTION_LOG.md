@@ -70,7 +70,7 @@
   compressed assets is still open.
 - [x] **1.3.4** Add a CI check (or local pre-commit hook) that
   fails if a new PNG lands without a compressed counterpart.
-  (commit: see R3 in the remaining-work log)
+  (commit: `aff3fbd`)
 
 ## Epic 2 — Server Scalability and Architecture  [ ]
 
