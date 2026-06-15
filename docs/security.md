@@ -113,6 +113,67 @@ Colyseus `StateView` provides per-client field visibility:
 
 **Impact:** None — standard UNO rules require all players to see all played cards.
 
+### 5. Bot vs. Human Timing Side-Channel (Severity: Very Low)
+
+**The leak:** Bot turns are scheduled with a fixed delay from the moment
+the previous turn ends. The delay is controlled by `BOT_TURN_DELAY_MS` in
+`shared/constants.ts` (currently 3500ms). Human turns can take anywhere
+from the moment a card is drawn (or played) up to
+`HUMAN_TURN_TIMEOUT_MS` (7000ms), with the player taking action whenever
+they decide — typically a few hundred milliseconds to a few seconds.
+
+A client observing the gap between "previous turn ended" and "next turn
+started" can distinguish a bot from a human with high confidence:
+
+- Gap close to `BOT_TURN_DELAY_MS` (3500ms) = next seat is a bot
+- Gap shorter than ~500ms = next seat is a fast human
+- Gap between 500ms and ~3s = next seat is a thinking human
+- Gap near `HUMAN_TURN_TIMEOUT_MS` (7s) = next seat is an AFK human
+  about to be auto-played
+
+The information is also available via the `isBot` field on
+`PlayerSchema` (which is public by design — players can see the avatar
+label and the bot indicator in the UI), so the timing leak does not
+reveal information that isn't already available. The timing channel is a
+secondary, observational leak.
+
+**Threat:** Low. A cheater could use this to identify bot opponents, but
+this does not reveal hand contents, deck composition, or any other
+hidden state. It only reveals seat occupancy type, which is also visible
+in the lobby via the avatar/UI (`isBot: true` on `PlayerSchema`).
+
+The threat does not include:
+
+- Predicting which cards a bot will play (bot decision-making is
+  unrelated to the delay — see the anti-cheat test on bot RNG
+  isolation)
+- Inferring hand sizes (already public via `handCount`)
+- Inferring deck composition (deck order is server-side, not derived
+  from the delay)
+
+**Decision:** **ACCEPTED.** The leak is informational only and does not
+enable any state-leakage attack. The mitigation cost is not justified
+for this threat level.
+
+**Future remediation (if threat changes):** If bot identification ever
+becomes a real concern (e.g., a competitive mode where players want to
+hide when they're queuing against bots), the mitigation options are:
+
+- **Randomize the delay per turn** — `BOT_TURN_DELAY_MS ± 20%` would
+  blur the bot-vs-fast-human boundary.
+- **Schedule on a human-like distribution** — sample the bot turn
+  delay from a distribution that overlaps with observed human
+  turn times (e.g., a normal distribution centered at 2s with sigma
+  1.5s, clamped to `[200ms, 7s]`).
+- **Server-side turn pacing for all players** — pace all turns (human
+  and bot) through a single server-side scheduler that releases turns
+  at human-realistic intervals. This would also smooth out burst
+  patterns in the matchmaker.
+
+These mitigations are deliberately not applied today. The fixed delay
+makes bot behavior more predictable for testing, and the threat
+analysis above shows the leak is low-impact.
+
 ## Anti-Cheat Test Coverage
 
 The `antiCheat.test.ts` file verifies:
