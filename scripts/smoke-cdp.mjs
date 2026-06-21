@@ -66,6 +66,29 @@ async function ensureGameReady() {
   await wait(1000);
 }
 
+async function assertCoachCopy(cdp, label) {
+  await waitFor(cdp, 'document.querySelector(".table-coach-eyebrow") !== null', 15000);
+  const result = await evalScript(
+    cdp,
+    `(() => {
+      const eyebrow = document.querySelector(".table-coach-eyebrow");
+      const title = document.querySelector(".table-coach strong");
+      const eyebrowText = eyebrow ? (eyebrow.textContent || "").trim() : "";
+      const titleText = title ? (title.textContent || "").trim() : "";
+      return {
+        eyebrowText,
+        titleText,
+        ok: ["Waiting", "Penalty turn", "UNO check", "Ready to play", "No legal play", "Your turn"].includes(eyebrowText),
+      };
+    })()`,
+  );
+  if (!result.result.value?.ok) {
+    throw new Error(
+      `Unexpected coach copy for ${label}: eyebrow="${result.result.value?.eyebrowText}" title="${result.result.value?.titleText}"`,
+    );
+  }
+}
+
 async function quickGame(cdp, name) {
   await fill(cdp, 'input[placeholder="Enter your player name"]', name);
   await click(cdp, ".primary-btn");
@@ -203,7 +226,9 @@ const cdp = await connectCdp(DEBUG_PORT);
 
 await setViewport(cdp, 1280, 720);
 await navigate(cdp, appUrl);
+await screenshot(cdp, `${SHOT_DIR}/web-react-lobby-desktop.png`);
 await quickGame(cdp, "SmokeDesk");
+await assertCoachCopy(cdp, "desktop");
 await exerciseOverlayStates(cdp);
 await simulatePlay(cdp, "desktop");
 await checkClean(cdp, "desktop");
