@@ -41,10 +41,10 @@ cd server && npm test
 cd server && npm run build
 cd web-react && npm run lint
 cd web-react && npm run build
-./scripts/smoke-web-agent-browser.sh
+./scripts/smoke-cdp.sh
 ```
 
-Server tests include autoplay coverage for full game completion and turn-limit exhaustion. The smoke test starts the server and React client, joins a live table in desktop and mobile viewports, attempts a real play/draw interaction, checks browser console/page errors, and writes screenshots under `.tmp-agent-browser/`.
+Server tests include autoplay coverage for full game completion and turn-limit exhaustion. The smoke test starts the server and React client, joins a live table in desktop and mobile viewports, attempts a real play/draw interaction, checks browser console/page errors, and writes screenshots under `.tmp-cdp-smoke/`.
 
 ## Assets
 

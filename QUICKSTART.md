@@ -42,19 +42,19 @@ After dependencies are installed, you can launch both with:
 
 This starts the server first, waits for `http://localhost:2567`, then starts the web client.
 
-## Browser smoke test (agent-browser)
+## Browser smoke test (CDP)
 
 To validate the client renders in a real browser automation session:
 
 ```bash
-./scripts/smoke-web-agent-browser.sh
+./scripts/smoke-cdp.sh
 ```
 
-This starts server + web client, runs the server autoplay rule test, opens the app with `agent-browser`, joins a live room in desktop and mobile viewports, attempts a play or draw interaction, checks browser console/page errors, and saves screenshots such as:
+This starts server + web client, runs the server autoplay rule test, opens the app through Chrome DevTools Protocol, joins a live room in desktop and mobile viewports, attempts a play or draw interaction, checks browser console/page errors, and saves screenshots such as:
 
-- `.tmp-agent-browser/web-react-game-desktop-0-initial.png`
-- `.tmp-agent-browser/web-react-game-desktop-1-selected.png`
-- `.tmp-agent-browser/web-react-game-desktop-2-played.png`
-- `.tmp-agent-browser/web-react-game-mobile-0-initial.png`
-- `.tmp-agent-browser/web-react-game-mobile-1-selected.png`
-- `.tmp-agent-browser/web-react-game-mobile-2-played.png`
+- `.tmp-cdp-smoke/web-react-game-desktop-0-initial.png`
+- `.tmp-cdp-smoke/web-react-game-desktop-1-selected.png`
+- `.tmp-cdp-smoke/web-react-game-desktop-2-played.png`
+- `.tmp-cdp-smoke/web-react-game-mobile-0-initial.png`
+- `.tmp-cdp-smoke/web-react-game-mobile-1-selected.png`
+- `.tmp-cdp-smoke/web-react-game-mobile-2-played.png`

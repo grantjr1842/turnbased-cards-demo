@@ -115,7 +115,7 @@
 
 - [x] **Verify GitHub Actions pass** — All CI workflows passing (Server CI, Client CI, Deploy).
 
-- [x] **Browser smoke tests need server running** — agent-browser smoke checks validate lobby; full gameplay requires server which is documented.
+- [x] **Browser smoke tests need server running** — CDP smoke checks validate lobby; full gameplay requires server which is documented.
 
 ### 🟢 Nice to Have (future enhancements) — ALL DONE
 

@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # scripts/play-ai.sh
-# A workflow/script to let Antigravity (the AI agent) jump into a real game of UNO and play with bots.
-# This script starts the local server and client if they are not already running,
-# and opens an agent-browser session so the AI can play live.
+# Deprecated helper. Use `npm run test:smoke` and `npm run test:turn-actions` instead.
 
 set -euo pipefail
 
@@ -68,62 +66,6 @@ fi
 
 echo "Services are ready!"
 
-# 4. Open agent-browser session and join game
-echo "Initializing agent-browser session: $SESSION"
-agent-browser --session "$SESSION" close --all >/dev/null 2>&1 || true
-
-echo "Opening UNO Web Client..."
-agent-browser --session "$SESSION" --headed --args "--no-sandbox,--disable-gpu-sandbox,--use-gl=swiftshader,--ignore-gpu-blocklist" open "$APP_URL"
-agent-browser --session "$SESSION" set viewport 1280 720
-agent-browser --session "$SESSION" wait --load networkidle
-
-echo "Joining game as 'Antigravity'..."
-agent-browser --session "$SESSION" fill 'input[placeholder="Enter your name"]' "Antigravity"
-agent-browser --session "$SESSION" click '.primary-btn'
-agent-browser --session "$SESSION" wait --fn 'document.querySelector(".game-shell") !== null'
-sleep 2
-
-# Take an initial screenshot so the agent can see the board
-mkdir -p "$ROOT_DIR/.tmp-agent-browser"
-agent-browser --session "$SESSION" screenshot "$ROOT_DIR/.tmp-agent-browser/live-game-start.png"
-
-cat <<EOF
-
-================================================================================
-🎉 SUCCESS! You are now joined to the live UNO game with actual bots.
-================================================================================
-Session: $SESSION
-Screenshot saved to: $ROOT_DIR/.tmp-agent-browser/live-game-start.png
-
-To play the game as Antigravity, you can run the following agent-browser commands
-using your run_command tool:
-
-1. Check the board status (take a screenshot):
-   agent-browser --session $SESSION screenshot "$ROOT_DIR/.tmp-agent-browser/live-game.png"
-
-2. Play a playable card (if it is your turn):
-   agent-browser --session $SESSION wait --fn '
-     (function() {
-       const playableCard = document.querySelector(".hand-card-wrapper.playable button");
-       if (playableCard) { playableCard.click(); return true; }
-       return false;
-     })()
-   '
-
-3. Draw a card (if you have no playable cards):
-   agent-browser --session $SESSION wait --fn '
-     (function() {
-       const drawDeck = document.querySelector(".draw-pile.guidance-pulse");
-       if (drawDeck) { drawDeck.click(); return true; }
-       return false;
-     })()
-   '
-
-To exit and clean up the processes, stop the script.
-================================================================================
-EOF
-
-# Keep script running to preserve PIDs
-while true; do
-  sleep 10
-done
+echo "This helper is deprecated."
+echo "Use 'npm run test:smoke' for automated checks or 'npm run dev' for interactive work."
+exit 1

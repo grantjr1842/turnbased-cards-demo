@@ -16,7 +16,7 @@ This project is a multiplayer UNO card game built with the [Colyseus](https://co
 ## Key Technologies
 
 - **Backend:** Colyseus 0.17, TypeScript, Express, Vitest.
-- **Frontend (Web):** React 19, Vite, React Three Fiber (Three.js), agent-browser for browser QA.
+- **Frontend (Web):** React 19, Vite, React Three Fiber (Three.js), browser automation and CDP smoke checks for browser QA.
 - **Communication:** WebSockets (via Colyseus SDK).
 
 ## Building and Running
@@ -60,15 +60,15 @@ To run both the server and the web client simultaneously:
 - Formatting: `npm run format` in `web-react/`.
 
 ### Browser Automation (REQUIRED RULE)
-**ONLY `agent-browser` is permitted for browser automation.** All other browser automation tools are explicitly forbidden:
+**Only the CDP smoke workflow is permitted for browser automation.** All other browser automation tools are explicitly forbidden:
 - Chrome DevTools MCP, puppeteer, playwright, chromium, headless Chrome, remote debugging, CDP — all prohibited
 - Any shell command matching `*chrome*`, `*chromium*`, `*headless*`, `*remote-debugging*`, `*devtools*`, `npx chrome*`, `npx puppeteer*`, `npx playwright*` — all prohibited
-- `agent-browser` is the sole allowed tool for smoke tests, UI verification, screenshot capture, and browser-based QA
+- The CDP smoke scripts are the approved path for smoke tests, UI verification, screenshot capture, and browser-based QA
 
 ### Testing
 - **Server:** Unit tests using Vitest in `server/test/`. Run with `npm test`.
-- **Web Client:** Use `agent-browser` for browser smoke checks and rendered UI verification.
-- **Smoke Test:** `./scripts/smoke-web-agent-browser.sh` validates basic functionality using browser automation.
+- **Web Client:** Use the CDP smoke scripts for browser smoke checks and rendered UI verification.
+- **Smoke Test:** `./scripts/smoke-cdp.sh` validates basic functionality using browser automation.
 
 ## Important Files
 - `server/src/rooms/UnoRoom.ts`: Main game loop, player actions (draw, play, uno), and room lifecycle.

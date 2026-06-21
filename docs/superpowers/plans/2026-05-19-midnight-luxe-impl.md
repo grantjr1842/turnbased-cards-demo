@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 19, Three.js 0.183, R3F 9, CSS custom properties, Vite 7
 
-**Testing:** Visual verification via agent-browser screenshots after each task. No unit tests (pure UI restyling).
+**Testing:** Visual verification via browser automation screenshots after each task. No unit tests (pure UI restyling).
 
 ---
 
@@ -244,7 +244,7 @@ Find `.lobby-divider { ... }` (around line 368). Replace with:
 
 - [ ] **Step 13: Take screenshot and verify**
 
-Run: `agent-browser --cdp 9222 open http://localhost:5173 && agent-browser --cdp 9222 wait 2000 && agent-browser --cdp 9222 screenshot /tmp/task1-lobby.png`
+Run: `browser automation --cdp 9222 open http://localhost:5173 && browser automation --cdp 9222 wait 2000 && browser automation --cdp 9222 screenshot /tmp/task1-lobby.png`
 
 Verify: Lobby has dark charcoal background, accent-colored hero card, clean typography.
 
@@ -289,7 +289,7 @@ const texture = useMemo(() => {
 
 Run stress test, screenshot table surface. Look for: smooth dark surface with subtle grain, no tiling/crosshatch.
 
-Evidence: `agent-browser` stress-test screenshots captured at `/tmp/midnight-table-desktop-final.png` and `/tmp/midnight-table-mobile-final.png` on 2026-05-23; table surface is flat midnight charcoal with subtle grain/cyan rings and no visible repeat/crosshatch artifacts.
+Evidence: `browser automation` stress-test screenshots captured at `/tmp/midnight-table-desktop-final.png` and `/tmp/midnight-table-mobile-final.png` on 2026-05-23; table surface is flat midnight charcoal with subtle grain/cyan rings and no visible repeat/crosshatch artifacts.
 
 ---
 
@@ -319,7 +319,7 @@ uniforms={{ color: { value: new THREE.Color("#00e5ff") }, opacity: { value: 0.35
 
 Run stress test. Verify cards show as solid colored rectangles with visible numbers. Take screenshot.
 
-Evidence: `agent-browser` stress-test screenshots captured at `/tmp/midnight-table-desktop-final.png` and `/tmp/midnight-table-mobile-final.png` on 2026-05-23; instanced cards render with visible colored faces/numbers over the redesigned table.
+Evidence: `browser automation` stress-test screenshots captured at `/tmp/midnight-table-desktop-final.png` and `/tmp/midnight-table-mobile-final.png` on 2026-05-23; instanced cards render with visible colored faces/numbers over the redesigned table.
 
 ---
 
@@ -354,7 +354,7 @@ Find `#c9a84c` for DIR_ARC_SHAPE material → `#00e5ff`
 
 Join a game, verify turn indicator shows cyan accents. Take screenshot.
 
-Evidence: `agent-browser` joined-game screenshot captured at `/tmp/midnight-game-pass2.png` on 2026-05-23; turn indicator/orbit uses cyan accents over the rewritten table.
+Evidence: `browser automation` joined-game screenshot captured at `/tmp/midnight-game-pass2.png` on 2026-05-23; turn indicator/orbit uses cyan accents over the rewritten table.
 
 ---
 
@@ -427,7 +427,7 @@ Find `.player-label` (around line 138). Replace with:
 
 Join game, verify HUD buttons have dark surface + cyan border. Take screenshot.
 
-Evidence: `agent-browser` joined-game screenshot captured at `/tmp/midnight-game-pass2.png` on 2026-05-23; HUD dock, top turn card, room rail, and player labels render as dark panels with cyan accents.
+Evidence: `browser automation` joined-game screenshot captured at `/tmp/midnight-game-pass2.png` on 2026-05-23; HUD dock, top turn card, room rail, and player labels render as dark panels with cyan accents.
 
 ---
 
@@ -537,7 +537,7 @@ Find `.toggle-btn` (around line 1093). Replace with:
 
 Open rules in game, verify dark panel with cyan border. Take screenshot.
 
-Evidence: `agent-browser` rules-overlay screenshot captured at `/tmp/midnight-rules-pass2.png` on 2026-05-23; rules panel is dark with cyan border/headings and muted body copy.
+Evidence: `browser automation` rules-overlay screenshot captured at `/tmp/midnight-rules-pass2.png` on 2026-05-23; rules panel is dark with cyan border/headings and muted body copy.
 
 ---
 
@@ -706,7 +706,7 @@ Find `.devtools-panel` (around line 790). Replace with:
 
 Open stress test, verify dark theme throughout. Take screenshot.
 
-Evidence: `agent-browser` stress screenshots captured at `/tmp/midnight-stress-pass2.png`, `/tmp/midnight-stress-mobile-pass2.png`, and devtools screenshot `/tmp/midnight-devtools-pass2.png` on 2026-05-23.
+Evidence: `browser automation` stress screenshots captured at `/tmp/midnight-stress-pass2.png`, `/tmp/midnight-stress-mobile-pass2.png`, and devtools screenshot `/tmp/midnight-devtools-pass2.png` on 2026-05-23.
 
 ---
 
@@ -717,21 +717,21 @@ Evidence: `agent-browser` stress screenshots captured at `/tmp/midnight-stress-p
 
 - [x] **Step 1: Screenshot lobby**
 
-`agent-browser --cdp 9222 open http://localhost:5173 && agent-browser --cdp 9222 screenshot /tmp/final-lobby.png`
+`browser automation --cdp 9222 open http://localhost:5173 && browser automation --cdp 9222 screenshot /tmp/final-lobby.png`
 
-Evidence: `agent-browser` lobby screenshot captured at `/tmp/midnight-lobby-pass2.png` on 2026-05-23.
+Evidence: `browser automation` lobby screenshot captured at `/tmp/midnight-lobby-pass2.png` on 2026-05-23.
 
 - [x] **Step 2: Screenshot game**
 
 Join game, screenshot `/tmp/final-game.png`
 
-Evidence: `agent-browser` joined-game screenshots captured at `/tmp/midnight-game-pass2.png` and `/tmp/midnight-game-final-pass2.png` on 2026-05-23.
+Evidence: `browser automation` joined-game screenshots captured at `/tmp/midnight-game-pass2.png` and `/tmp/midnight-game-final-pass2.png` on 2026-05-23.
 
 - [x] **Step 3: Screenshot stress test**
 
 Open stress test, screenshot `/tmp/final-stress.png`
 
-Evidence: `agent-browser` stress-test screenshots captured at `/tmp/midnight-stress-pass2.png` and `/tmp/midnight-stress-mobile-pass2.png` on 2026-05-23.
+Evidence: `browser automation` stress-test screenshots captured at `/tmp/midnight-stress-pass2.png` and `/tmp/midnight-stress-mobile-pass2.png` on 2026-05-23.
 
 - [x] **Step 4: Verify all criteria**
 

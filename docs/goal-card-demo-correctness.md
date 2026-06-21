@@ -24,5 +24,5 @@ cd server && npm test
 cd server && npm run build
 cd web-react && npm run lint
 cd web-react && npm run build
-./scripts/smoke-web-agent-browser.sh
+./scripts/smoke-cdp.sh
 ```

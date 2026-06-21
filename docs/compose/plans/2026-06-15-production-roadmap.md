@@ -1102,18 +1102,18 @@ git commit -m "feat(client): add Sentry error tracking integration"
 **Covers:** 4.1
 
 **Files:**
-- Modify: `scripts/smoke-web-agent-browser.sh` — Extend for full game loop
+- Modify: `scripts/smoke-cdp.sh` — Extend for full game loop
 - Create: `tests/e2e/game-loop.test.ts`
 
 - [ ] **Step 1: Review existing smoke test**
 
-Read `scripts/smoke-web-agent-browser.sh` to understand current coverage.
+Read `scripts/smoke-cdp.sh` to understand current coverage.
 
 - [ ] **Step 2: Extend smoke test for full game loop**
 
 ```bash
 #!/bin/bash
-# scripts/smoke-web-agent-browser.sh (extended)
+# scripts/smoke-cdp.sh (extended)
 set -euo pipefail
 
 # ... existing lobby test ...
@@ -1164,7 +1164,7 @@ Expected: All smoke tests pass
 - [ ] **Step 5: Commit**
 
 ```bash
-git add scripts/smoke-web-agent-browser.sh tests/e2e/game-loop.test.ts
+git add scripts/smoke-cdp.sh tests/e2e/game-loop.test.ts
 git commit -m "test(e2e): add full game loop E2E tests"
 ```
 

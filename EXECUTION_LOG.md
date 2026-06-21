@@ -53,7 +53,7 @@
 - [x] **1.2.5** Re-run the profiler. Render rate dropped (no React
   re-render per animation frame after `f4e78c8` DOM-mutation
   refactor). (commit: `f4e78c8`)
-- [ ] **1.2.6** Add a Playwright (or the existing agent-browser
+- [ ] **1.2.6** Add a Playwright (or the existing browser automation
   smoke) assertion that FPS stays above 30 during a 4-player
   game in progress. Pin the threshold so future regressions fail.
 
