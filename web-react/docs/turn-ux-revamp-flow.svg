@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" role="img" aria-label="Annotated turn UX flow diagram">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#101827"/>
+      <stop offset="100%" stop-color="#0b1220"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f5c542"/>
+      <stop offset="100%" stop-color="#ff6b4a"/>
+    </linearGradient>
+    <style>
+      .title { font: 700 32px Arial, sans-serif; fill: #f7f4ea; }
+      .subtitle { font: 400 16px Arial, sans-serif; fill: #c9d0df; }
+      .label { font: 700 18px Arial, sans-serif; fill: #f7f4ea; }
+      .body { font: 400 14px Arial, sans-serif; fill: #d2d9e6; }
+      .chip { font: 700 12px Arial, sans-serif; fill: #0b1220; }
+      .panel { fill: rgba(255,255,255,0.04); stroke: rgba(255,255,255,0.14); stroke-width: 2; rx: 24; }
+      .arrow { stroke: #f5c542; stroke-width: 4; fill: none; marker-end: url(#arrowhead); }
+      .soft { fill: rgba(245,197,66,0.13); stroke: rgba(245,197,66,0.35); stroke-width: 2; rx: 18; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#f5c542" />
+    </marker>
+  </defs>
+
+  <rect width="1200" height="560" fill="url(#bg)" rx="28" />
+  <text x="48" y="58" class="title">Turn UX Revamp</text>
+  <text x="48" y="86" class="subtitle">The top bar, player strip, and hand dock all echo the same turn state.</text>
+
+  <rect x="52" y="124" width="1096" height="64" class="soft" />
+  <text x="78" y="162" class="label">1. Top bar: turn state + direction + invite code</text>
+  <rect x="720" y="140" width="160" height="32" rx="16" fill="url(#accent)" />
+  <text x="744" y="161" class="chip">Your move</text>
+  <rect x="900" y="140" width="180" height="32" rx="16" fill="#d9dee9" />
+  <text x="924" y="161" class="chip">Counter-clockwise</text>
+
+  <rect x="52" y="220" width="1096" height="112" class="panel" />
+  <text x="78" y="252" class="label">2. Player strip: active seat + timer ring</text>
+  <text x="78" y="280" class="body">The active player gets the strongest avatar accent. The timer ring shifts to warning as the deadline approaches.</text>
+  <rect x="770" y="244" width="280" height="56" rx="28" fill="rgba(255,255,255,0.08)" />
+  <circle cx="810" cy="272" r="18" fill="#f5c542" />
+  <circle cx="810" cy="272" r="26" fill="none" stroke="#ff6b4a" stroke-width="4" />
+  <text x="850" y="268" class="label" font-size="16">Active player</text>
+  <text x="850" y="290" class="body">Timer ring: critical near timeout</text>
+
+  <path class="arrow" d="M588 194 L588 220" />
+  <path class="arrow" d="M588 332 L588 372" />
+
+  <rect x="52" y="372" width="1096" height="136" class="panel" />
+  <text x="78" y="404" class="label">3. Hand dock: coach + callouts + playable cards</text>
+  <text x="78" y="432" class="body">The coach answers the question "What do I do right now?" with explicit prompts for wait, draw, UNO, or play.</text>
+  <rect x="78" y="450" width="208" height="34" rx="17" fill="#f5c542" />
+  <text x="104" y="472" class="chip">Penalty turn</text>
+  <rect x="308" y="450" width="230" height="34" rx="17" fill="#ff6b4a" />
+  <text x="334" y="472" class="chip">UNO check</text>
+  <rect x="560" y="450" width="248" height="34" rx="17" fill="#86efac" />
+  <text x="584" y="472" class="chip">Ready to play</text>
+  <rect x="830" y="444" width="258" height="46" rx="23" fill="rgba(255,255,255,0.08)" />
+  <text x="856" y="473" class="body">Tap a card, tap again to play</text>
+</svg>

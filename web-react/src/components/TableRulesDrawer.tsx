@@ -27,7 +27,7 @@ export function TableRulesDrawer({
         tabIndex={-1}
       >
         <div className="drawer-header">
-          <h2 id="rules-drawer-title">Rules & Shortcuts</h2>
+          <h2 id="rules-drawer-title">Rules & shortcuts</h2>
           <div style={{ display: "flex", gap: "8px" }}>
             <button className="ghost-btn" data-testid="rules-replay-guide" onClick={onReplayGuide} type="button">
               Replay guide
@@ -39,7 +39,7 @@ export function TableRulesDrawer({
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
           <section>
-            <h3 style={{ color: "var(--gold)", marginBottom: "8px" }}>Keyboard Shortcuts</h3>
+            <h3 style={{ color: "var(--gold)", marginBottom: "8px" }}>Keyboard shortcuts</h3>
             <ul
               style={{
                 listStyle: "none",
@@ -54,25 +54,25 @@ export function TableRulesDrawer({
                 <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>◀</kbd>
                 /{" "}
                 <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>▶</kbd>{" "}
-                Select Cards
+                Move between cards
               </li>
               <li>
                 <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>Space</kbd>
                 /{" "}
                 <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>Enter</kbd>{" "}
-                Play Selected Card
+                Play selected card
               </li>
               <li>
                 <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>D</kbd>{" "}
-                Draw Card from deck
+                Draw from the deck
               </li>
               <li>
                 <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>U</kbd>{" "}
-                Call UNO!
+                Call UNO
               </li>
               <li>
                 <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>C</kbd>{" "}
-                Open & Focus Chat input
+                Focus chat input
               </li>
               <li>
                 <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>R</kbd>{" "}
@@ -82,26 +82,26 @@ export function TableRulesDrawer({
                 <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>G</kbd>{" "}
                 /{" "}
                 <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>B</kbd>{" "}
-                Select Wild Color (Red/Yellow/Green/Blue)
+                Choose wild color
               </li>
               <li>
                 <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>Esc</kbd>{" "}
-                Cancel Wild Color selection
+                Cancel wild color selection
               </li>
               <li>
                 <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: "4px", marginRight: "8px" }}>?</kbd>{" "}
-                Open/Close Rules Drawer
+                Toggle rules
               </li>
             </ul>
           </section>
 
           <section>
-            <h3 style={{ color: "var(--gold)", marginBottom: "8px" }}>Wild Table UNO Rules</h3>
+            <h3 style={{ color: "var(--gold)", marginBottom: "8px" }}>UNO rules</h3>
             <p style={{ fontSize: "13px", lineHeight: "1.6", color: "var(--text-muted)" }}>
-              Match the top card of the discard pile by color or rank. When you have exactly one
-              card left in hand, you MUST click the <strong>UNO!</strong> button (or press{" "}
-              <kbd>U</kbd>) before playing your next-to-last card. Failing to do so triggers a{" "}
-              <strong>2-card draw penalty</strong>!
+              Match the top discard card by color or rank. When you have exactly one card left in
+              hand, you must click the <strong>UNO!</strong> button (or press <kbd>U</kbd>)
+              before your next move. Failing to do so triggers a{" "}
+              <strong>2-card draw penalty</strong>.
             </p>
             <p style={{ fontSize: "13px", lineHeight: "1.6", color: "var(--text-muted)", marginTop: "8px" }}>
               <strong>Draw Penalties:</strong> Draw-2 and Wild Draw-4 cards force the next player
@@ -111,9 +111,9 @@ export function TableRulesDrawer({
           </section>
 
           <section>
-            <h3 style={{ color: "var(--gold)", marginBottom: "8px" }}>Action Card Guide</h3>
+            <h3 style={{ color: "var(--gold)", marginBottom: "8px" }}>Action card guide</h3>
             <p className="rule-guide-intro">
-              Number cards match by color or number. These illustrated cards change the turn:
+              Number cards match by color or number. These illustrated cards change the move:
             </p>
             <ul className="rule-card-grid">
               {RULE_CARD_EXAMPLES.map(({ card, title, text }) => (

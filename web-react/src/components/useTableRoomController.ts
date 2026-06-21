@@ -14,9 +14,11 @@ import {
   buildGuidanceState,
   buildMeSummary,
   buildRosterEntries,
+  buildTurnCoachState,
   getActivePlayerThemeColor,
   getSpotlightPos,
   isTutorialCompleteFlagSet,
+  shouldEmphasizeDrawDeck,
   sortHand,
 } from "./tableRoomControllerLogic";
 import type { CardSchema, Toast, UnoColor, UnoState } from "../gameTypes";
@@ -29,6 +31,7 @@ export interface TableRoomControllerProps {
   onToggleColorblind: () => void;
   showToast: (message: string, kind?: Toast["kind"]) => void;
   disconnected: boolean;
+  debugTurnScenario?: "lockedHand" | "drawPenalty" | null;
 }
 
 interface CardFlight {
@@ -47,6 +50,7 @@ interface TurnBanner {
   name: string;
   emoji: string;
   themeColor: string;
+  subtitle: string;
 }
 
 interface ParticleData {
@@ -60,7 +64,7 @@ interface ParticleData {
 }
 
 export function useTableRoomController(props: TableRoomControllerProps) {
-  const { room, state, showToast } = props;
+  const { room, state, showToast, debugTurnScenario } = props;
   const me = localPlayer(room, state);
   const players = statePlayers(state);
   const discardPile = state?.discardPile ?? [];
@@ -77,6 +81,8 @@ export function useTableRoomController(props: TableRoomControllerProps) {
   const meSummary = buildMeSummary(me, state?.spectatorCount ?? 0);
   const rosterEntries = buildRosterEntries(players, me?.sessionId, state?.currentPlayer);
   const isMyTurn = !!me && me.seatIndex === state?.currentPlayer && state?.winner === -1;
+  const effectiveIsMyTurn =
+    debugTurnScenario === "lockedHand" ? false : debugTurnScenario === "drawPenalty" ? true : isMyTurn;
   const spotlightPos = useMemo(
     () =>
       getSpotlightPos({
@@ -356,10 +362,19 @@ export function useTableRoomController(props: TableRoomControllerProps) {
         const av = parsePlayerName(activePlayer.name);
         const themeInfo = AVATAR_THEMES.find((t) => t.id === av.theme);
         const emoji = AVATAR_SYMBOLS.find((s) => s.id === av.symbol)?.emoji || "🐯";
+        const subtitle =
+          activePlayer.sessionId === room?.sessionId
+            ? (state.pendingDraw ?? 0) > 0
+              ? `Draw ${(state.pendingDraw ?? 0)} card${(state.pendingDraw ?? 0) === 1 ? "" : "s"} before you continue.`
+              : state.unoCaller === me?.seatIndex
+                ? "Call UNO before your next play."
+                : "Play a card or draw from the deck."
+            : `Turn passes to ${av.name}.`;
         setTurnBanner({
           name: activePlayer.sessionId === room?.sessionId ? "Your Turn" : av.name,
           emoji,
           themeColor: themeInfo ? themeInfo.primary : "var(--gold)",
+          subtitle,
         });
         trackTimeout(() => setTurnBanner(null), 1200);
 
@@ -713,6 +728,7 @@ export function useTableRoomController(props: TableRoomControllerProps) {
       } else if (key === "arrowright") {
         setSelectedCardIdx((prev) => Math.min(hand.length - 1, prev + 1));
       } else if (event.key === " " || event.key === "Enter") {
+        event.preventDefault();
         if (selectedCardIdx >= 0 && selectedCardIdx < hand.length) {
           const card = hand[selectedCardIdx];
           if (isMyTurn && isPlayable(card, state)) {
@@ -752,37 +768,74 @@ export function useTableRoomController(props: TableRoomControllerProps) {
   const hasPlayableCards = useMemo(() => {
     return hand.some((card) => isPlayable(card, state));
   }, [hand, state]);
+  const playableCardCount = useMemo(() => {
+    return hand.filter((card) => isPlayable(card, state)).length;
+  }, [hand, state]);
 
   const pendingDraw = state?.pendingDraw ?? 0;
   const mustCallUno = state?.unoCaller === me?.seatIndex;
-  const shouldDrawHint = isMyTurn && !hasPlayableCards && tableReady;
+  const effectivePendingDraw = debugTurnScenario === "drawPenalty" ? Math.max(2, pendingDraw) : pendingDraw;
+  const effectiveHasPlayableCards = debugTurnScenario === "drawPenalty" ? true : hasPlayableCards;
+  const effectivePlayableCardCount = debugTurnScenario === "drawPenalty" ? Math.max(1, playableCardCount) : playableCardCount;
+  const shouldDrawHint = shouldEmphasizeDrawDeck({
+    isMyTurn: effectiveIsMyTurn,
+    tableReady,
+    pendingDraw: effectivePendingDraw,
+    hasPlayableCards: effectiveHasPlayableCards,
+  });
 
   const selectedCard =
     selectedCardIdx >= 0 && selectedCardIdx < hand.length ? hand[selectedCardIdx] : null;
   const isSelectedPlayable = selectedCard ? isPlayable(selectedCard, state, hand) : false;
+  const turnCoach = useMemo(
+    () =>
+      buildTurnCoachState({
+        isMyTurn: effectiveIsMyTurn,
+        currentPlayerLabel,
+        activeColor: state?.activeColor,
+        pendingDraw: effectivePendingDraw,
+        mustCallUno,
+        hasPlayableCards: effectiveHasPlayableCards,
+        playableCardCount: effectivePlayableCardCount,
+        selectedCard,
+        isSelectedPlayable,
+      }),
+    [
+      currentPlayerLabel,
+      effectiveHasPlayableCards,
+      effectiveIsMyTurn,
+      isSelectedPlayable,
+      mustCallUno,
+      effectivePendingDraw,
+      effectivePlayableCardCount,
+      selectedCard,
+      state?.activeColor,
+    ],
+  );
 
   const { guidanceText, guidanceStatus } = useMemo(
     () =>
       buildGuidanceState({
         mustCallUno,
-        isMyTurn,
-        pendingDraw,
-        hasPlayableCards,
+        isMyTurn: effectiveIsMyTurn,
+        pendingDraw: effectivePendingDraw,
+        hasPlayableCards: effectiveHasPlayableCards,
+        playableCardCount: effectivePlayableCardCount,
         selectedCard,
         isSelectedPlayable,
       }),
-    [mustCallUno, isMyTurn, pendingDraw, hasPlayableCards, selectedCard, isSelectedPlayable],
+    [mustCallUno, effectiveIsMyTurn, effectivePendingDraw, effectiveHasPlayableCards, effectivePlayableCardCount, selectedCard, isSelectedPlayable],
   );
 
   const actionCallout = useMemo(
     () =>
       buildActionCallout({
         mustCallUno,
-        isMyTurn,
-        pendingDraw,
-        hasPlayableCards,
+        isMyTurn: effectiveIsMyTurn,
+        pendingDraw: effectivePendingDraw,
+        hasPlayableCards: effectiveHasPlayableCards,
       }),
-    [mustCallUno, isMyTurn, pendingDraw, hasPlayableCards],
+    [mustCallUno, effectiveIsMyTurn, effectivePendingDraw, effectiveHasPlayableCards],
   );
 
   const tutorialCards = getTutorialCards();
@@ -816,7 +869,8 @@ export function useTableRoomController(props: TableRoomControllerProps) {
     activePlayerThemeColor,
     meSummary,
     rosterEntries,
-    isMyTurn,
+    isMyTurn: effectiveIsMyTurn,
+    selectedCard,
     spotlightPos,
     hasOneCardWarning,
     roomCode,
@@ -845,17 +899,19 @@ export function useTableRoomController(props: TableRoomControllerProps) {
     wildDialogRef,
     hand,
     handCount,
+    playableCardCount: effectivePlayableCardCount,
     handMid,
     dynamicFanAngle,
     dynamicFanOffset,
     dynamicMarginValue,
     hasPlayableCards,
     actionCallout,
-    pendingDraw,
+    pendingDraw: effectivePendingDraw,
     mustCallUno,
     shouldDrawHint,
     guidanceText,
     guidanceStatus,
+    turnCoach,
     tutorial,
     tutorialCards,
     closeTutorial,

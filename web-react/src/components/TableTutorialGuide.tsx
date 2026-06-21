@@ -38,10 +38,10 @@ export function TableTutorialGuide({
       </div>
       <div className="first-game-guide-actions">
         <button className="ghost-btn" data-testid="tutorial-skip" onClick={onCloseTutorial} type="button">
-          Skip guide
+          Skip walkthrough
         </button>
         <button className="guide-next-btn" data-testid="tutorial-next" onClick={onAdvanceTutorial} type="button">
-          {tutorialStep === tutorialCount - 1 ? "Start playing" : "Next"}
+          {tutorialStep === tutorialCount - 1 ? "Start moving" : "Next"}
         </button>
       </div>
     </section>

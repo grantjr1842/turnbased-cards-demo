@@ -22,10 +22,10 @@ Make sure the [game server](../server/) is running on port 2567.
 - **Sort** - Reorder the local hand by color or value.
 - **Chat** - Send room messages from the table sidebar.
 
-### Mobile Touch Gestures
+### Turn UX Revamp
 
-- **Swipe a card right** - Play the swiped card immediately.
-- **Swipe left on the draw deck** - Draw a card from the deck.
+The turn flow now has a dedicated writeup in [docs/turn-ux-revamp.md](docs/turn-ux-revamp.md). It covers the turn-state model, the hand coach, the board overlays, and the input rules without repeating the full implementation details here.
+Touch and keyboard details live in the same writeup.
 
 ### Lobby Match History
 
@@ -64,4 +64,4 @@ npm run build
 npm run test:smoke
 ```
 
-`npm run test:smoke` exercises desktop and mobile browser sessions through `agent-browser` against a running game server on port `2567`, and writes screenshots to `../.tmp-agent-browser/`. If the environment lacks a display server, run it under `xvfb-run -a`.
+`npm run test:smoke` exercises desktop and mobile browser sessions through a CDP-backed headless Chrome runner against a running game server on port `2567`, and writes screenshots to `../.tmp-cdp-smoke/`. If the environment lacks a display server, run it under `xvfb-run -a`.

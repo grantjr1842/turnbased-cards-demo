@@ -86,16 +86,13 @@ export function Lobby({
         </div>
         <div className="brand-copy" style={{ zIndex: 10 }}>
           <h1>Wild Table</h1>
-          <p>
-            An elegant, high-fidelity real-time card table. Seamless turns, live spectators, and
-            smooth glassmorphic interfaces.
-          </p>
+          <p>A real-time card table built for fast moves, clear matches, and clean turns.</p>
         </div>
       </section>
 
       <section className="join-panel" aria-label="Join game">
         <div className="panel-header">
-          <span>Multiplayer Table</span>
+          <span>Set up your table</span>
           <strong>
             {busy ? (
               <span className="connecting-spinner">
@@ -108,18 +105,18 @@ export function Lobby({
         </div>
 
         <label className="field">
-          <span>Player nickname</span>
+          <span>Player name</span>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Enter your name"
+            placeholder="Enter your player name"
             maxLength={16}
             autoFocus
           />
         </label>
 
         <div className="avatar-creator-panel">
-          <span>Customize Avatar</span>
+          <span>Choose avatar</span>
           <div className="avatar-creator-layout">
             <AvatarIcon symbol={avatarSymbol} theme={avatarTheme} size={64} glow />
             <div className="avatar-creator-picker-column">
@@ -160,14 +157,14 @@ export function Lobby({
         </div>
 
         <div className="field">
-          <span>Match options</span>
+          <span>Table options</span>
           <div className="control-row">
             <button
               className={privateRoom ? "chip active" : "chip"}
               onClick={() => setPrivateRoom((value) => !value)}
               type="button"
             >
-              Private: {privateRoom ? "On" : "Off"}
+              Private table: {privateRoom ? "On" : "Off"}
             </button>
             {(["easy", "medium", "hard"] as const).map((level) => (
               <button
@@ -184,11 +181,11 @@ export function Lobby({
 
         {privateRoom && (
           <label className="field">
-            <span>Room password</span>
+            <span>Table password</span>
             <input
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="Optional table password"
+              placeholder="Optional table passcode"
               type="password"
               maxLength={32}
             />
@@ -201,16 +198,16 @@ export function Lobby({
           onClick={() => handleStart(onQuickPlay)}
           type="button"
         >
-          {busy ? "Connecting..." : "Create Table"}
+          {busy ? "Connecting..." : "Start table"}
         </button>
 
         <div className="join-grid">
           <label className="field compact">
-            <span>Invite code</span>
+            <span>Table code</span>
             <input
               value={roomCode}
               onChange={(event) => setRoomCode(event.target.value)}
-              placeholder="Room Code"
+              placeholder="Enter table code"
             />
           </label>
           <button
@@ -219,7 +216,7 @@ export function Lobby({
             onClick={() => handleStart((opts) => onJoinCode(roomCode.trim(), opts))}
             type="button"
           >
-            Enter
+            Join table
           </button>
           <button
             className="secondary-btn"
@@ -227,7 +224,7 @@ export function Lobby({
             onClick={() => onWatch(roomCode.trim())}
             type="button"
           >
-            Watch
+            Watch table
           </button>
         </div>
 
@@ -242,7 +239,7 @@ export function Lobby({
             onClick={onToggleColorblind}
             type="button"
           >
-            ♿ Colorblind Mode: {colorblindMode ? "On" : "Off"}
+            ♿ Color symbols: {colorblindMode ? "On" : "Off"}
           </button>
         </div>
 

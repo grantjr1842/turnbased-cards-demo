@@ -31,6 +31,7 @@ type TableRoomProps = TableRoomControllerProps;
 export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
   useTableRoomPerformance("TableRoom");
   const { room, state, onLeave, colorblindMode, onToggleColorblind, showToast, disconnected } = props;
+  const { debugTurnScenario } = props;
   const {
     me,
     players,
@@ -47,6 +48,7 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
     meSummary,
     rosterEntries,
     isMyTurn,
+    selectedCard,
     spotlightPos,
     hasOneCardWarning,
     roomCode,
@@ -75,6 +77,7 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
     wildDialogRef,
     hand,
     handCount,
+    playableCardCount,
     handMid,
     dynamicFanAngle,
     dynamicFanOffset,
@@ -83,6 +86,7 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
     guidanceText,
     guidanceStatus,
     actionCallout,
+    turnCoach,
     tutorial,
     tutorialCards,
     closeTutorial,
@@ -97,6 +101,7 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
     onToggleColorblind,
     showToast,
     disconnected,
+    debugTurnScenario,
   });
 
   return (
@@ -181,7 +186,7 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
             </div>
             {shouldDrawHint && (
               <div className="draw-guidance-tooltip" role="tooltip">
-                <span>Draw a card!</span>
+                <span>{(state?.pendingDraw ?? 0) > 0 ? `Take +${state?.pendingDraw}` : "Draw a card!"}</span>
               </div>
             )}
           </button>
@@ -306,6 +311,7 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
         meSeatIndex={me?.seatIndex}
         isMyTurn={isMyTurn}
         actionCallout={actionCallout}
+        turnCoach={turnCoach}
         guidanceText={guidanceText}
         guidanceStatus={guidanceStatus}
         sortBy={sortBy}
@@ -313,6 +319,8 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
         actionBubbleLocal={actionBubbles.find((b) => b.seatIndex === me?.seatIndex)}
         hand={hand}
         handCount={handCount}
+        playableCardCount={playableCardCount}
+        selectedCard={selectedCard}
         handMid={handMid}
         dynamicFanAngle={dynamicFanAngle}
         dynamicFanOffset={dynamicFanOffset}
@@ -322,6 +330,8 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
         playCard={playCard}
         onUnplayableTap={handleUnplayableTap}
         scrollHand={scrollHand}
+        onShowRules={() => setShowRules(true)}
+        onClearSelection={() => setSelectedCardIdx(-1)}
         handScrollRef={handScrollRef}
         colorblindMode={colorblindMode}
       />

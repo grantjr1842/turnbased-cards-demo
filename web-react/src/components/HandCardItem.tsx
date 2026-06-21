@@ -13,6 +13,7 @@ interface HandCardItemProps {
   dynamicFanOffset: number;
   playable: boolean;
   isSelected: boolean;
+  canInteract: boolean;
   colorblindMode: boolean;
   dynamicMarginValue: string;
   setSelectedCardIdx: (idx: number) => void;
@@ -28,6 +29,7 @@ function HandCardItemInner({
   dynamicFanOffset,
   playable,
   isSelected,
+  canInteract,
   colorblindMode,
   dynamicMarginValue,
   setSelectedCardIdx,
@@ -47,11 +49,13 @@ function HandCardItemInner({
   }, []);
 
   const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    if (!canInteract) return;
     touchStartY.current = e.touches[0].clientY;
     isDragging.current = true;
   };
 
   const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => {
+    if (!canInteract) return;
     if (!isDragging.current) return;
     const diffY = touchStartY.current - e.touches[0].clientY;
     const offset = diffY > 0 ? Math.min(90, diffY) : Math.max(-40, diffY);
@@ -59,6 +63,7 @@ function HandCardItemInner({
   };
 
   const handleTouchEnd = (e: TouchEvent<HTMLDivElement>) => {
+    if (!canInteract) return;
     if (!isDragging.current) return;
     isDragging.current = false;
     e.preventDefault();
@@ -117,7 +122,7 @@ function HandCardItemInner({
 
   return (
     <div
-      className={`hand-card-wrapper ${playable ? "playable" : ""} ${isSelected ? "keyboard-focused" : ""} ${isNew ? "card-deal-in" : ""} ${card.color || ""}`}
+      className={`hand-card-wrapper ${playable ? "playable" : ""} ${isSelected ? "keyboard-focused" : ""} ${isNew ? "card-deal-in" : ""} ${!canInteract ? "locked" : ""} ${card.color || ""}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -149,6 +154,7 @@ function HandCardItemInner({
       <button
         onClick={(e) => {
           e.stopPropagation();
+          if (!canInteract) return;
           if (isSelected) {
             if (playable) {
               playCard(card);
@@ -162,6 +168,8 @@ function HandCardItemInner({
           }
         }}
         type="button"
+        disabled={!canInteract}
+        aria-disabled={!canInteract}
         style={{ width: "100%", height: "100%" }}
         aria-label={cardLabel(card)}
       >

@@ -10,8 +10,17 @@ import { readStorage, writeStorage } from "./storage";
 import { ErrorBoundary } from "./sentry";
 import "./sentry";
 
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:2567";
+const configuredWsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:2567";
+const isLocalHost =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1" ||
+  window.location.hostname === "::1";
+const WS_URL = import.meta.env.DEV && isLocalHost ? "ws://localhost:2567" : configuredWsUrl;
 const client = new Client(WS_URL);
+const debugTurnScenario =
+  import.meta.env.DEV && isLocalHost
+    ? (new URLSearchParams(window.location.search).get("debugTurn") as "lockedHand" | "drawPenalty" | null)
+    : null;
 
 function App() {
   const [mode, setMode] = useState<Mode>("lobby");
@@ -162,17 +171,18 @@ function App() {
             room={room}
             state={state}
             onLeave={leaveRoom}
-            colorblindMode={colorblindMode}
-            onToggleColorblind={toggleColorblindMode}
-            showToast={showToast}
-            disconnected={disconnected}
-          />
-        </ErrorBoundary>
+          colorblindMode={colorblindMode}
+          onToggleColorblind={toggleColorblindMode}
+          showToast={showToast}
+          disconnected={disconnected}
+          debugTurnScenario={debugTurnScenario}
+        />
+      </ErrorBoundary>
       ) : (
         <Lobby
           busy={mode === "joining"}
           error={error}
-          onQuickPlay={(options) => connect(client.joinOrCreate("uno", options))}
+          onQuickPlay={(options) => connect(client.create("uno", options))}
           onJoinCode={(roomId, options) => connect(client.joinById(roomId, options))}
           onWatch={(roomId) =>
             connect(client.joinById(roomId, { name: "Spectator", spectator: true }))
