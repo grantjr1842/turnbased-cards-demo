@@ -46,7 +46,7 @@ The top bar gives the quickest summary of turn ownership. `src/components/TableT
 
 - The invite code.
 - A turn-state label, which flips between `Your move` and `<player> to act`.
-- The current turn direction.
+- A turn-order label that reads `Clockwise` or `Counter-clockwise`.
 
 This keeps the current actor visible even when the board is crowded or the player is watching a penalty resolve.
 
@@ -76,8 +76,8 @@ This is the board-level source of urgency. It tells everyone whose move is live 
 
 - An eyebrow label such as `Waiting`, `Penalty turn`, `UNO check`, or `Ready to play`.
 - A short title and subtitle.
-- A primary action button when the player can act.
-- A fallback draw action and selection reset when they need an alternate path.
+- A primary action button such as `UNO!`, `Draw card`, or `Play selected` when the player can act.
+- A fallback `Draw card` action, a `Rules` shortcut, and `Clear selection` when they need an alternate path.
 - A step list that breaks the turn into readable sub-actions.
 - A color hint that repeats the current active color.
 
@@ -103,7 +103,7 @@ The client uses these surfaces together so a player can read the board, select a
 - play from the hand,
 - call UNO when down to one card.
 
-`src/components/TableRulesDrawer.tsx` is the deeper reference layer. It lists keyboard shortcuts, explains draw penalties, and documents the special-card rules.
+`src/components/TableRulesDrawer.tsx` is the deeper reference layer. Its header reads `Rules & shortcuts`. It lists keyboard shortcuts, explains draw penalties, and documents the special-card rules.
 
 The walkthrough is short and progressive. The rules drawer is the durable reference for players who want details.
 
@@ -165,6 +165,7 @@ The revamp leans on plain action language and redundant signals.
 
 - The coach uses short verbs such as `Draw`, `Play`, and `UNO`.
 - The top bar repeats the turn state so players do not have to scan the whole board.
+- The top bar and drawer use sentence case labels such as `Your move`, `Rules & shortcuts`, and `Counter-clockwise`.
 - The active color is shown as both a color chip and text.
 - Colorblind mode adds symbols for red, blue, green, and yellow.
 - Penalties and invalid selections use warning and error tones instead of a single neutral style.
