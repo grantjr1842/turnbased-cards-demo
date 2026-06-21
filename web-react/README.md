@@ -1,6 +1,6 @@
 # UNO Demo - React Web Client
 
-![Screenshot](screenshot.webp)
+![Current lobby screen](screenshot.webp)
 
 Web client for [Turn-Based UNO Demo](../README.md) built with [React](https://react.dev/), the [Colyseus TypeScript SDK](https://docs.colyseus.io/getting-started/typescript), CSS card/table rendering, and Vite.
 
