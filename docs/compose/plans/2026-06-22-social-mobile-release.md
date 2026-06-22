@@ -31,7 +31,7 @@
 - Consumes: existing room state, join flow, winner overlay, and `restart` / `play_card` / `draw_card` message patterns.
 - Produces: room-password handling, rematch voting, local stats presentation, and protocol docs that explain the new social loop.
 
-- [ ] **Step 1: Define the social loop scope**
+- [x] **Step 1: Define the social loop scope**
 
 Ship the release with a room lifecycle users can understand without outside coordination:
 
@@ -40,11 +40,11 @@ Ship the release with a room lifecycle users can understand without outside coor
 - a visible player stats summary in the lobby or options overlay
 - updated protocol notes for any new server messages
 
-- [ ] **Step 2: Add the room-state and server-side messages**
+- [x] **Step 2: Add the room-state and server-side messages**
 
 Update the room schema and room logic so the server owns the authoritative finish/rematch state. The release should preserve the current join flow while adding the new vote/restart path and password validation on join.
 
-- [ ] **Step 3: Surface the social features in the client**
+- [x] **Step 3: Surface the social features in the client**
 
 Update the lobby and winner overlay so players can:
 
@@ -52,7 +52,7 @@ Update the lobby and winner overlay so players can:
 - vote for a rematch after a game ends
 - view basic stats without leaving the app flow
 
-- [ ] **Step 4: Verify the social loop**
+- [x] **Step 4: Verify the social loop**
 
 Run:
 
@@ -63,7 +63,7 @@ cd web-react && npm run build
 
 Expected: server tests pass, and the client still builds cleanly after the new social-state wiring.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/rooms/schema/UnoRoomState.ts \
@@ -87,19 +87,19 @@ git commit -m "feat: release social room flow"
 - Consumes: current HUD controls, winner overlay, card hit targets, and keyboard shortcuts.
 - Produces: a layout that remains usable at phone widths and on touch-only devices.
 
-- [ ] **Step 1: Lock in responsive layout rules**
+- [x] **Step 1: Lock in responsive layout rules**
 
 Tighten the mobile breakpoints so the lobby, HUD, hand dock, chat, and winner overlay all fit without horizontal scrolling at 375px wide.
 
-- [ ] **Step 2: Add touch interaction support**
+- [x] **Step 2: Add touch interaction support**
 
 Add swipe handling for card navigation and keep touch targets large enough for thumb use.
 
-- [ ] **Step 3: Keep accessibility in the same pass**
+- [x] **Step 3: Keep accessibility in the same pass**
 
 Preserve reduced-motion behavior, button labels, and keyboard shortcuts so the mobile work does not regress screen-reader or keyboard usability.
 
-- [ ] **Step 4: Verify on mobile viewports**
+- [x] **Step 4: Verify on mobile viewports**
 
 Run the browser smoke script and inspect at least one narrow phone viewport and one common modern phone viewport.
 
@@ -109,7 +109,7 @@ Run the browser smoke script and inspect at least one narrow phone viewport and 
 
 Expected: the lobby joins, the table renders, and the smoke artifacts are produced without viewport clipping or fatal console errors.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web-react/src/index.css \
@@ -133,19 +133,19 @@ git commit -m "feat: mobile-first playability improvements"
 - Consumes: current server startup path, CI workflows, and deployment documentation.
 - Produces: optional Redis-backed presence, clear environment-variable documentation, and CI that still reflects shared-rule changes.
 
-- [ ] **Step 1: Make Redis support optional**
+- [x] **Step 1: Make Redis support optional**
 
 Wire Redis presence so horizontal scaling can be enabled by environment without breaking local development.
 
-- [ ] **Step 2: Document the deployment contract**
+- [x] **Step 2: Document the deployment contract**
 
 Document the exact environment variables and startup expectations required for this release so a deployer can run the app without guessing at hidden config.
 
-- [ ] **Step 3: Keep CI honest**
+- [x] **Step 3: Keep CI honest**
 
 Make sure the workflows still run the right tests when shared rules, server logic, or smoke files change.
 
-- [ ] **Step 4: Verify startup paths**
+- [x] **Step 4: Verify startup paths**
 
 Run:
 
@@ -156,7 +156,7 @@ cd server && npm start
 
 Expected: the server builds and starts with no Redis configured.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/src/app.config.ts \
@@ -180,15 +180,15 @@ git commit -m "feat: release deployability and scaling"
 - Consumes: the full release surface from Tasks 1 to 3.
 - Produces: a repeatable release evidence trail with smoke artifacts, test gates, and a release checklist that can be audited later.
 
-- [ ] **Step 1: Harden the smoke harness**
+- [x] **Step 1: Harden the smoke harness**
 
 Keep the browser smoke deterministic enough to be useful as a release gate, not just a local demo.
 
-- [ ] **Step 2: Refresh the release checklist**
+- [x] **Step 2: Refresh the release checklist**
 
 Capture the release-sized scope in `TODO.md` so the next maintainer can see what shipped and what remains as follow-on work.
 
-- [ ] **Step 3: Run the final gates**
+- [x] **Step 3: Run the final gates**
 
 Run:
 
@@ -203,7 +203,7 @@ git diff --check
 
 Expected: all gates pass on the release tree and the smoke run produces reviewable artifacts.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add scripts/smoke-web-agent-browser.sh TODO.md docs/compose/plans/2026-06-22-social-mobile-release.md
@@ -222,8 +222,23 @@ git commit -m "docs: record social mobile release scope"
 
 ## Release Acceptance Checklist
 
-- [ ] Social room flow is documented and implemented.
-- [ ] Mobile layout and touch behavior are release-ready.
-- [ ] Deployment and scale settings are documented and verified.
-- [ ] Smoke artifacts exist for review.
-- [ ] The release tree passes the server, client, smoke, and hygiene gates.
+- [x] Social room flow is documented and implemented.
+- [x] Mobile layout and touch behavior are release-ready.
+- [x] Deployment and scale settings are documented and verified.
+- [x] Smoke artifacts exist for review.
+- [x] The release tree passes the server, client, smoke, and hygiene gates.
+
+## Execution Summary
+
+The current tree already contains the release implementation, so this pass verified and recorded it rather than reworking the code from scratch.
+
+- Social room flow is present in `server/src/rooms/UnoRoom.ts`, `server/src/rooms/schema/UnoRoomState.ts`, `web-react/src/main.tsx`, `web-react/src/components/Game.tsx`, and `docs/protocol.md`.
+- Mobile-first behavior is present in `web-react/src/index.css`, `web-react/src/components/GameScene.tsx`, and `web-react/src/components/Game.tsx`.
+- Deployment and scale support is present in `server/src/app.config.ts`, `server/package.json`, `docs/deployment.md`, `.github/workflows/client.yml`, and `.github/workflows/server.yml`.
+- Release QA passed on the live tree:
+  - `cd server && npm test` passed with 271 tests.
+  - `cd server && npm run build` passed.
+  - `cd web-react && npm run lint` passed.
+  - `cd web-react && npm run build` passed.
+  - `./scripts/smoke-web-agent-browser.sh` passed and wrote desktop/mobile/full-game artifacts under `.tmp-agent-browser/`.
+  - `git diff --check` passed.

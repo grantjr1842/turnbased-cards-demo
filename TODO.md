@@ -87,6 +87,14 @@
 - [x] docs/schema-migration.md
 - [x] docs/troubleshooting.md
 
+### Social, Mobile, and Ops Release
+- [x] Private room password flow
+- [x] Rematch voting flow
+- [x] Leaderboard / stats overlay
+- [x] Mobile responsive layout and swipe support
+- [x] Optional Redis-backed presence
+- [x] Release QA gates and browser smoke artifacts
+
 ---
 
 ## Remaining Work 🔨
