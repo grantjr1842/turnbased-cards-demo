@@ -1,5 +1,7 @@
 # Demo: Turn-Based UNO Card Game
 
+**Current version: v1.0.0** — see [CHANGELOG.md](CHANGELOG.md) for release history.
+
 ![Turn-Based UNO Demo](sharing.webp)
 
 A multiplayer UNO card game built with [Colyseus](https://colyseus.io/). Multiple frontend implementations share the same authoritative game server and shared UNO rules.

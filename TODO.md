@@ -1,5 +1,8 @@
 # TODO Map — turnbased-cards-demo
 
+> **Released: v1.0.0** — Inaugural production release (2026-07-04).
+> See [CHANGELOG.md](CHANGELOG.md) and [docs/releases/v1.0.0.md](docs/releases/v1.0.0.md).
+
 ## What's Done ✅
 
 ### Core Server
