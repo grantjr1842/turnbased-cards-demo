@@ -10,7 +10,7 @@
     - [x] Raise z-index and style crisp gold borders on center shield shapes (`::after`)
     - [x] Reorder deck stack layers z-index hierarchy so the top card with emblem sits properly on top of underlying cards
     - [x] Apply premium inner outline (`::before`) and central gold/color emblem (`::after`) to all `.luxury-deck-layer` elements so shuffling cards are rendered perfectly
-    - [x] Verify the stunning bright white-gold fanned deck, shuffle animations, and crisp geometric center shields using `agent-browser`
+    - [x] Verify the stunning bright white-gold fanned deck, shuffle animations, and crisp geometric center shields using `browser automation`
 - [x] **Mobile-first Tactile Selection & Play Flow**
     - [x] Remove `disabled={!playable}` from card buttons in `main.tsx` to enable clicking and event bubbling for any card
     - [x] Program tactile click-to-select: first click selects a card (`selectedCardIdx`), playing a soft card rustle sound (`sfx.playSwish()`)

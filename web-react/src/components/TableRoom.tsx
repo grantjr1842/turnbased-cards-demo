@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { AmbientStardust } from "./AmbientStardust";
 import { CardAtlasView } from "./CardAtlasView";
 import { PlayDirectionRing } from "./PlayDirectionRing";
@@ -31,6 +31,9 @@ type TableRoomProps = TableRoomControllerProps;
 export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
   useTableRoomPerformance("TableRoom");
   const { room, state, onLeave, colorblindMode, onToggleColorblind, showToast, disconnected } = props;
+  const { debugTurnScenario } = props;
+  // Inline callback props: the React Compiler auto-memoizes these based on
+  // their dependencies, so explicit useCallback is no longer needed.
   const {
     me,
     players,
@@ -47,6 +50,7 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
     meSummary,
     rosterEntries,
     isMyTurn,
+    selectedCard,
     spotlightPos,
     hasOneCardWarning,
     roomCode,
@@ -75,6 +79,7 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
     wildDialogRef,
     hand,
     handCount,
+    playableCardCount,
     handMid,
     dynamicFanAngle,
     dynamicFanOffset,
@@ -83,6 +88,7 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
     guidanceText,
     guidanceStatus,
     actionCallout,
+    turnCoach,
     tutorial,
     tutorialCards,
     closeTutorial,
@@ -97,7 +103,16 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
     onToggleColorblind,
     showToast,
     disconnected,
+    debugTurnScenario,
   });
+
+  // Memoize the opponent list so <PlayerStrip> (memoized) only re-renders when
+  // the roster or the local player actually changes, not on every server tick
+  // or local animation frame.
+  const opponents = useMemo(
+    () => players.filter((player) => player.sessionId !== me?.sessionId),
+    [players, me?.sessionId],
+  );
 
   return (
     <TableShell>
@@ -128,7 +143,7 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
         <AmbientStardust />
         <div className="player-band">
           <PlayerStrip
-            players={players.filter((player) => player.sessionId !== me?.sessionId)}
+            players={opponents}
             activeSeat={state?.currentPlayer ?? -1}
             turnDeadline={state?.turnDeadline}
             skippedSeatIndex={skippedSeatIndex}
@@ -181,7 +196,7 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
             </div>
             {shouldDrawHint && (
               <div className="draw-guidance-tooltip" role="tooltip">
-                <span>Draw a card!</span>
+                <span>{(state?.pendingDraw ?? 0) > 0 ? `Take +${state?.pendingDraw}` : "Draw a card!"}</span>
               </div>
             )}
           </button>
@@ -306,6 +321,7 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
         meSeatIndex={me?.seatIndex}
         isMyTurn={isMyTurn}
         actionCallout={actionCallout}
+        turnCoach={turnCoach}
         guidanceText={guidanceText}
         guidanceStatus={guidanceStatus}
         sortBy={sortBy}
@@ -313,6 +329,8 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
         actionBubbleLocal={actionBubbles.find((b) => b.seatIndex === me?.seatIndex)}
         hand={hand}
         handCount={handCount}
+        playableCardCount={playableCardCount}
+        selectedCard={selectedCard}
         handMid={handMid}
         dynamicFanAngle={dynamicFanAngle}
         dynamicFanOffset={dynamicFanOffset}
@@ -322,6 +340,8 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
         playCard={playCard}
         onUnplayableTap={handleUnplayableTap}
         scrollHand={scrollHand}
+        onShowRules={() => setShowRules(true)}
+        onClearSelection={() => setSelectedCardIdx(-1)}
         handScrollRef={handScrollRef}
         colorblindMode={colorblindMode}
       />

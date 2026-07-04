@@ -11,6 +11,7 @@ import { populateSchemaCard } from "../../../shared/gameLogic.ts";
 import { HUMAN_TURN_TIMEOUT_MS, BOT_TURN_DELAY_MS } from "../../shared/constants.ts";
 import { NUM_PLAYERS, HAND_SIZE } from "../../shared/uno.ts";
 import { logger } from "../logger.ts";
+import { recordGameDuration } from "../metrics.ts";
 import { RateLimiter } from "../rateLimiter.ts";
 import { playCardSchema, chatSchema, validateMessage } from "../schemas/index.ts";
 
@@ -52,6 +53,8 @@ export class UnoRoom extends Room<{ state: RoomState }> {
   private password?: string;
   /** Card counting: tracks how many cards of each color/value have been discarded */
   private discardedCounts: Record<string, number> = {};
+  /** Timestamp the current game started (for game-duration metrics). */
+  private gameStartedAt: number | null = null;
 
   onCreate(options: { private?: boolean; difficulty?: string; password?: string } = {}) {
     try {
@@ -151,17 +154,19 @@ export class UnoRoom extends Room<{ state: RoomState }> {
         throw new Error("Rate limited");
       }
 
-      // Validate password first
-      if (this.password && options?.password !== this.password) {
-        throw new Error("Invalid password");
-      }
-
-      // Spectator join — watch without taking a seat
+      // Spectator join — watch without taking a seat.
+      // Password is intentionally NOT required so the host can share a
+      // private-table invite with viewers without leaking the passcode.
       if (options?.spectator) {
         this.spectators.add(client);
         this.state.spectatorCount = this.spectators.size;
         log.info({ sessionId: client.sessionId }, "Spectator joined");
         return;
+      }
+
+      // Validate password (active players only — spectators skip this check above)
+      if (this.password && options?.password !== this.password) {
+        throw new Error("Invalid password");
       }
 
       // Find a bot seat to replace
@@ -275,8 +280,14 @@ export class UnoRoom extends Room<{ state: RoomState }> {
         }
       }
 
-      if (this.state.phase === "finished" && this.state.rematchVotes.length > 0) {
-        this.state.rematchVotes.splice(0, this.state.rematchVotes.length);
+      if (this.state.phase === "finished") {
+        // Only drop the departing player's own rematch vote — other connected
+        // players' votes must survive a single disconnect (previously this
+        // wiped ALL votes, discarding everyone's rematch request).
+        const voteIdx = this.state.rematchVotes.indexOf(player.seatIndex);
+        if (voteIdx !== -1) {
+          this.state.rematchVotes.splice(voteIdx, 1);
+        }
       }
 
       // Clean up StateView to prevent memory leaks
@@ -312,6 +323,14 @@ export class UnoRoom extends Room<{ state: RoomState }> {
     this.state.rematchVotes = new ArraySchema();
   }
 
+  /** Observe the completed game's duration and reset the start marker. */
+  private recordGameEnd() {
+    if (this.gameStartedAt !== null) {
+      recordGameDuration((Date.now() - this.gameStartedAt) / 1000);
+      this.gameStartedAt = null;
+    }
+  }
+
   private checkRateLimit(
     client: Client,
     messageType: "play_card" | "draw_card" | "challenge_wild_draw4" | "chat" | "uno_call" | "join",
@@ -335,6 +354,54 @@ export class UnoRoom extends Room<{ state: RoomState }> {
       if (player.isBot && found === null) found = player;
     });
     return found;
+  }
+
+  /**
+   * Take over a bot seat for a human client. Shared by handleMatchmake (and
+   * mirroring onJoin) so the seat-takeover consistently cancels any pending
+   * bot-turn callback, cleans up seatsHandedToBot, sets up the StateView,
+   * locks the room when full, and reschedules the turn. Returns whether the
+   * seat was a reconnecting player's abandoned seat.
+   */
+  private assignSeatToClient(client: Client, botPlayer: PlayerInstance, name: string): boolean {
+    const takingAbandonedSeat = this.seatsHandedToBot.has(botPlayer.seatIndex);
+    if (takingAbandonedSeat) {
+      this.seatsHandedToBot.delete(botPlayer.seatIndex);
+      // Cancel any pending botTurn for this seat (player beat the timer)
+      const pending = this.turnCallbacks.get(botPlayer.seatIndex);
+      if (pending !== undefined) {
+        clearTimeout(pending);
+        this.turnCallbacks.delete(botPlayer.seatIndex);
+      }
+    }
+
+    botPlayer.sessionId = client.sessionId;
+    botPlayer.name = sanitizePlainText(name) || "Player";
+    botPlayer.isBot = false;
+    botPlayer.connected = true;
+
+    // Set up StateView — player can see their own hand
+    client.view = new StateView();
+    client.view.add(botPlayer);
+
+    // If all seats are human, lock (spectators don't count toward locking)
+    let allHuman = true;
+    this.state.players.forEach((p: PlayerInstance) => {
+      if (p.isBot) allHuman = false;
+    });
+    if (allHuman) {
+      this.lock().catch(() => {});
+    }
+
+    // Reset the timer when taking over the active turn seat, or when a
+    // returning player reclaims an abandoned seat, so they get full time.
+    if (botPlayer.seatIndex === this.state.currentPlayer) {
+      this.scheduleTurn();
+    } else if (takingAbandonedSeat) {
+      this.scheduleTurn();
+    }
+
+    return takingAbandonedSeat;
   }
 
   private findPlayerBySession(sessionId: string): PlayerInstance | null {
@@ -519,6 +586,7 @@ export class UnoRoom extends Room<{ state: RoomState }> {
       seatIndex: pendingWinnerSeat,
     }, "Game finished");
     this.state.phase = "finished";
+    this.recordGameEnd();
     this.state.rematchVotes.splice(0, this.state.rematchVotes.length);
     clearTimeout(this.turnTimeout);
   }
@@ -577,6 +645,7 @@ export class UnoRoom extends Room<{ state: RoomState }> {
     this.state.pendingDraw =
       firstCard.type === "color" && firstCard.value === "draw2" ? 2 : 0;
     this.state.winner = -1;
+    this.gameStartedAt = Date.now();
   }
 
   private scheduleTurn() {
@@ -713,6 +782,7 @@ export class UnoRoom extends Room<{ state: RoomState }> {
           seatIndex: player.seatIndex,
         }, "Game finished");
         this.state.phase = "finished";
+        this.recordGameEnd();
         this.state.rematchVotes.splice(0, this.state.rematchVotes.length);
         clearTimeout(this.turnTimeout);
         // Reset flag before the finally runs
@@ -1148,7 +1218,7 @@ export class UnoRoom extends Room<{ state: RoomState }> {
   }
 
   private handleMatchmake(client: Client, message: unknown) {
-    const data = message as { elo?: number; region?: string } | undefined;
+    const data = message as { elo?: number; region?: string; name?: string; password?: string } | undefined;
 
     const elo = typeof data?.elo === "number" ? Math.max(0, Math.min(3000, data.elo)) : 1000;
     const region = typeof data?.region === "string" ? data.region : "global";
@@ -1164,34 +1234,40 @@ export class UnoRoom extends Room<{ state: RoomState }> {
       return;
     }
 
+    // Spectators must not be able to claim a seat via matchmake — doing so
+    // would bypass the room password and leave a dual-role client whose seat
+    // is never converted back to a bot on disconnect (zombie seat).
+    if (this.spectators.has(client)) {
+      client.send("error", { message: "Spectators cannot claim a seat", code: "SPECTATOR_NO_SEAT" });
+      return;
+    }
+
+    // Rate-limit seat-takeover attempts (reuses the join bucket).
+    if (this.checkRateLimit(client, "join")) {
+      return;
+    }
+
+    // Active players must supply the room password, mirroring onJoin.
+    if (this.password && data?.password !== this.password) {
+      client.send("error", { message: "Invalid password", code: "INVALID_PASSWORD" });
+      return;
+    }
+
     const botPlayer = this.findBotSeat();
     if (!botPlayer) {
       client.send("error", { message: "No seats available", code: "NO_SEATS" });
       return;
     }
 
-    botPlayer.sessionId = client.sessionId;
     let name = "Player";
-    if (typeof (data as { name?: string })?.name === "string") {
-      const trimmed = ((data as { name?: string }).name || "").trim();
+    if (typeof data?.name === "string") {
+      const trimmed = data.name.trim();
       if (trimmed.length >= 2 && trimmed.length <= 16) {
         name = trimmed;
       }
     }
-    botPlayer.name = sanitizePlainText(name) || "Player";
-    botPlayer.isBot = false;
-    botPlayer.connected = true;
 
-    client.view = new StateView();
-    client.view.add(botPlayer);
-
-    let allHuman = true;
-    this.state.players.forEach((p: PlayerInstance) => {
-      if (p.isBot) allHuman = false;
-    });
-    if (allHuman) {
-      this.lock().catch(() => {});
-    }
+    this.assignSeatToClient(client, botPlayer, name);
 
     client.send("matchmake_joined", {
       sessionId: client.sessionId,

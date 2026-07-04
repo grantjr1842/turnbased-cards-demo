@@ -10,7 +10,7 @@ This is a Vite + React client for the UNO demo. The main app lives in `src/main.
 - `npm run lint` - run `oxlint` across the codebase.
 - `npm run format` - rewrite files with `oxfmt`.
 - `npm run preview` - serve the production build locally.
-- `npm run test:smoke` - run the browser smoke script in `../scripts/smoke-web-agent-browser.sh`; the game server should be running on port `2567`.
+- `npm run test:smoke` - run the browser smoke scripts in `../scripts/smoke-cdp.mjs` and `../scripts/smoke-turn-actions.sh`; the game server should be running on port `2567`.
 
 ## Coding Style & Naming Conventions
 Use TypeScript with `strict` mode enabled. Prefer functional React components, explicit types for state and schema objects, and keep imports organized. Follow the existing naming pattern: PascalCase for components/types, camelCase for variables/functions, and `*.tsx` for UI modules. Formatting is handled by `oxfmt`; lint issues should be resolved with `oxlint` rather than suppressed unless a browser/API quirk requires a targeted exception.

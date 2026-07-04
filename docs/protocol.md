@@ -97,7 +97,7 @@ Send a chat message to all players and spectators in the room.
 **Validation (server-side):**
 - Player or spectator must be in the room
 - `text` must be a non-empty string ≤ 200 characters
-- Content is sanitized via DOMPurify to prevent XSS
+- Content is sanitized via `sanitizePlainText()` to prevent XSS
 
 **Response:** Chat message broadcast via state sync at `state.chatMessages`. Messages are stored in a rolling buffer of up to 50 messages.
 

@@ -74,7 +74,7 @@ We will concentrate our improvements in two main files of the `web-react` client
 
 ### Automated Tests
 *   Run `npm run lint` and `npm run build` in `web-react/` to ensure zero compilation or styling warnings.
-*   Launch `./scripts/smoke-web-agent-browser.sh` to execute browser-driven E2E UI verification.
+*   Launch `./scripts/smoke-cdp.sh` to execute browser-driven E2E UI verification.
 
 ### Manual Verification
 *   Verify responsive layout on desktop (1280x720) and mobile (390x844) viewport presets.

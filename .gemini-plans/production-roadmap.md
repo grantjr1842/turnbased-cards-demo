@@ -87,7 +87,7 @@ malicious payloads.
   npm run test:smoke` covers the lobby → table flow. Extend it to
   run multiple games end-to-end with bots + a human client, capture
   the state at each step, and assert win/loss conditions. Use
-  `agent-browser` (already wired up in the smoke test).
+  `browser automation` (already wired up in the smoke test).
 - [ ] **4.2 Strict payload validation.** Add a schema validator
   (zod or valibot) to every incoming Colyseus message handler. Reject
   malformed payloads with a structured error code, never crash the

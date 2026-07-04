@@ -7,7 +7,9 @@ import {
   buildRosterEntries,
   getActivePlayerThemeColor,
   getSpotlightPos,
+  isHandInteractive,
   sortHand,
+  shouldEmphasizeDrawDeck,
 } from "../src/components/tableRoomControllerLogic.ts";
 import type { CardSchema, PlayerSchema } from "../src/gameTypes.ts";
 
@@ -110,6 +112,7 @@ test("buildGuidanceState covers turn, penalty, and invalid-selection states", ()
       isMyTurn: true,
       pendingDraw: 0,
       hasPlayableCards: true,
+      playableCardCount: 1,
       selectedCard: null,
       isSelectedPlayable: true,
     }).guidanceStatus,
@@ -121,6 +124,7 @@ test("buildGuidanceState covers turn, penalty, and invalid-selection states", ()
     isMyTurn: true,
     pendingDraw: 4,
     hasPlayableCards: false,
+    playableCardCount: 0,
     selectedCard: null,
     isSelectedPlayable: true,
   });
@@ -131,22 +135,24 @@ test("buildGuidanceState covers turn, penalty, and invalid-selection states", ()
     isMyTurn: true,
     pendingDraw: 0,
     hasPlayableCards: true,
+    playableCardCount: 1,
     selectedCard: card("r2", "color", "red", "2"),
     isSelectedPlayable: false,
   });
   assert.equal(invalid.guidanceStatus, "error");
-  assert.match(invalid.guidanceText, /Invalid selection!/);
+  assert.match(invalid.guidanceText, /Invalid selection:/);
 
   const noPlayable = buildGuidanceState({
     mustCallUno: false,
     isMyTurn: true,
     pendingDraw: 0,
     hasPlayableCards: false,
+    playableCardCount: 0,
     selectedCard: null,
     isSelectedPlayable: true,
   });
   assert.equal(noPlayable.guidanceStatus, "warning");
-  assert.match(noPlayable.guidanceText, /No playable cards in hand!/);
+  assert.match(noPlayable.guidanceText, /No playable cards in hand\./);
 });
 
 test("buildActionCallout mirrors UNO and draw-penalty prompts", () => {
@@ -160,7 +166,7 @@ test("buildActionCallout mirrors UNO and draw-penalty prompts", () => {
     {
       kind: "uno",
       title: "UNO call required",
-      text: "Tap UNO before you play again to avoid the 2-card penalty.",
+      text: "Tap UNO before your next move to avoid the 2-card penalty.",
     },
   );
 
@@ -183,6 +189,41 @@ test("buildActionCallout mirrors UNO and draw-penalty prompts", () => {
     })?.text ?? "",
     /No stacking card available/,
   );
+});
+
+test("draw deck emphasis follows both empty-hand and penalty turns", () => {
+  assert.equal(
+    shouldEmphasizeDrawDeck({
+      isMyTurn: true,
+      tableReady: true,
+      pendingDraw: 2,
+      hasPlayableCards: true,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldEmphasizeDrawDeck({
+      isMyTurn: true,
+      tableReady: true,
+      pendingDraw: 0,
+      hasPlayableCards: false,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldEmphasizeDrawDeck({
+      isMyTurn: false,
+      tableReady: true,
+      pendingDraw: 2,
+      hasPlayableCards: true,
+    }),
+    false,
+  );
+});
+
+test("hand interaction is only enabled on the local turn", () => {
+  assert.equal(isHandInteractive(true), true);
+  assert.equal(isHandInteractive(false), false);
 });
 
 test("me summary and theme helpers stay stable", () => {

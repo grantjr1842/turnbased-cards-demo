@@ -71,6 +71,10 @@ export class DemoRoom extends Room<{ state: InstanceType<typeof DemoState> }> {
       this.stepOnce();
     });
     this.onMessage("set_speed", (_client: Client, message: { tickMs: number }) => {
+      // Guard against malformed input: a non-finite tickMs would clamp to NaN,
+      // and setTimeout(fn, NaN) is treated as 0 — spinning the demo loop as
+      // fast as possible and starving the event loop.
+      if (typeof message.tickMs !== "number" || !Number.isFinite(message.tickMs)) return;
       this.tickMs = Math.max(100, Math.min(10000, message.tickMs));
       this.state.demo.tickMs = this.tickMs;
     });

@@ -1,8 +1,10 @@
 import type { CSSProperties, RefObject } from "react";
 import { HandCardItem } from "./HandCardItem";
 import type { CardSchema, UnoColor, UnoState } from "../gameTypes";
-import { isPlayable } from "../gameHelpers";
-import type { ActionCallout } from "./tableRoomControllerLogic";
+import { cardLabel, isPlayable } from "../gameHelpers";
+import { sfx } from "../audio/sfx";
+import { isHandInteractive, type ActionCallout, type TurnCoachState } from "./tableRoomControllerLogic";
+import { TableTurnCoach } from "./TableTurnCoach";
 
 interface HandDockProps {
   room: { send: (type: string, payload?: unknown) => void } | null;
@@ -10,6 +12,7 @@ interface HandDockProps {
   meSeatIndex: number | undefined;
   isMyTurn: boolean;
   actionCallout: ActionCallout;
+  turnCoach: TurnCoachState;
   guidanceText: string;
   guidanceStatus: string;
   sortBy: "none" | "color" | "value";
@@ -17,6 +20,8 @@ interface HandDockProps {
   actionBubbleLocal: { text: string; themeColor: string } | undefined;
   hand: CardSchema[];
   handCount: number;
+  playableCardCount: number;
+  selectedCard: CardSchema | null;
   handMid: number;
   dynamicFanAngle: number;
   dynamicFanOffset: number;
@@ -26,6 +31,8 @@ interface HandDockProps {
   playCard: (card: CardSchema, color?: UnoColor) => void;
   onUnplayableTap: (card: CardSchema) => void;
   scrollHand: (direction: "left" | "right") => void;
+  onShowRules: () => void;
+  onClearSelection: () => void;
   handScrollRef: RefObject<HTMLDivElement | null>;
   colorblindMode: boolean;
 }
@@ -36,6 +43,7 @@ export function TableHandDock({
   meSeatIndex,
   isMyTurn,
   actionCallout,
+  turnCoach,
   guidanceText,
   guidanceStatus,
   sortBy,
@@ -43,6 +51,8 @@ export function TableHandDock({
   actionBubbleLocal,
   hand,
   handCount,
+  playableCardCount,
+  selectedCard,
   handMid,
   dynamicFanAngle,
   dynamicFanOffset,
@@ -52,6 +62,8 @@ export function TableHandDock({
   playCard,
   onUnplayableTap,
   scrollHand,
+  onShowRules,
+  onClearSelection,
   handScrollRef,
   colorblindMode,
 }: HandDockProps) {
@@ -61,6 +73,26 @@ export function TableHandDock({
       className={`hand-dock ${isMyTurn ? "my-turn" : ""}`}
       aria-label="Your hand cards dock"
     >
+      <TableTurnCoach
+        coach={turnCoach}
+        isMyTurn={isMyTurn}
+        playableCardCount={playableCardCount}
+        handCount={handCount}
+        onDrawCard={() => room?.send("draw_card")}
+        onPlaySelected={() => {
+          if (selectedCard) {
+            playCard(selectedCard);
+          }
+        }}
+        onCallUno={() => {
+          sfx.playUno();
+          room?.send("uno");
+        }}
+        onFocusRules={onShowRules}
+        onClearSelection={onClearSelection}
+        selectedCardLabel={selectedCard ? cardLabel(selectedCard) : null}
+      />
+
       {actionCallout && (
         <div
           className={`turn-action-callout ${actionCallout.kind}`}
@@ -75,8 +107,19 @@ export function TableHandDock({
 
       <div className="hand-header hand-header-layout">
         <div className="hand-header-copy">
-          <span>{isMyTurn ? "YOUR TURN" : "YOUR HAND"}</span>
+          <span>{isMyTurn ? "YOUR MOVE" : "YOUR HAND"}</span>
           <strong className={`hand-guidance-text ${guidanceStatus}`}>{guidanceText}</strong>
+          <div className="hand-metric-row" aria-label="Turn summary">
+            <span className="hand-metric-pill">{handCount} cards</span>
+            <span className="hand-metric-pill">
+              {isMyTurn ? `${playableCardCount} legal play${playableCardCount === 1 ? "" : "s"}` : "Watching table"}
+            </span>
+            {isMyTurn && (
+              <span className="hand-metric-pill subtle">
+                {playableCardCount > 0 ? "Tap a card to preview" : "Tap the deck to reset"}
+              </span>
+            )}
+          </div>
         </div>
 
         {actionBubbleLocal && (
@@ -102,6 +145,7 @@ export function TableHandDock({
             <button
               className="uno-btn"
               onClick={() => {
+                sfx.playUno();
                 room?.send("uno");
               }}
               type="button"
@@ -135,6 +179,7 @@ export function TableHandDock({
                   dynamicFanOffset={dynamicFanOffset}
                   playable={playable}
                   isSelected={isSelected}
+                  canInteract={isHandInteractive(isMyTurn)}
                   colorblindMode={colorblindMode}
                   dynamicMarginValue={dynamicMarginValue}
                   setSelectedCardIdx={setSelectedCardIdx}

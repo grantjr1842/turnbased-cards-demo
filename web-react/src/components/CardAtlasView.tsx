@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { cardTextureFromSchema } from "../../../shared/index.ts";
 import type { CardSchema } from "../gameTypes";
-import { ATLAS_ORDER } from "../tableConfig";
+import { ATLAS_INDEX } from "../tableConfig";
 import { cardLabel } from "../gameHelpers";
 
 interface CardAtlasViewProps {
@@ -18,7 +18,7 @@ export function CardAtlasView({
   skin = "classic",
 }: CardAtlasViewProps) {
   const textureId = isBack || !card ? "back" : cardTextureFromSchema(card);
-  const index = ATLAS_ORDER.indexOf(textureId);
+  const index = ATLAS_INDEX.get(textureId) ?? -1;
   const col = index !== -1 ? index % 10 : 54;
   const row = index !== -1 ? Math.floor(index / 10) : 5;
 

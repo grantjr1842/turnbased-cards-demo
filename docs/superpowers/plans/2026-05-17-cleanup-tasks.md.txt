@@ -16,7 +16,7 @@
 |------|---------------|
 | `docs/superpowers/plans/2026-05-17-remaining-features.md` | Existing plan — rename to avoid Jekyll Liquid parse errors |
 | `docs/superpowers/specs/2026-05-17-remaining-features-design.md` | Existing spec — rename to avoid Jekyll Liquid parse errors |
-| `.tmp-agent-browser/` | Temporary agent-browser artifacts — delete |
+| `.tmp-cdp-smoke/` | Temporary browser automation artifacts — delete |
 | `web-react/test-results/` | Browser test artifacts — delete |
 | `origin/feat/remaining-nice-to-haves` | Stale merged remote branch — delete |
 
@@ -75,13 +75,13 @@ Expected: No output (branch deleted).
 ## Task 3: Remove Temporary Artifact Directories
 
 **Files:**
-- Delete: `.tmp-agent-browser/`
+- Delete: `.tmp-cdp-smoke/`
 - Delete: `web-react/test-results/`
 
-- [ ] **Step 1: Remove .tmp-agent-browser**
+- [ ] **Step 1: Remove .tmp-cdp-smoke**
 
 ```bash
-rm -rf /home/gfunk/github/turnbased-cards-demo/.tmp-agent-browser
+rm -rf /home/gfunk/github/turnbased-cards-demo/.tmp-cdp-smoke
 ```
 
 - [ ] **Step 2: Remove browser test-results**
@@ -94,7 +94,7 @@ rm -rf /home/gfunk/github/turnbased-cards-demo/web-react/test-results
 
 Run:
 ```bash
-ls -d /home/gfunk/github/turnbased-cards-demo/.tmp-agent-browser 2>&1
+ls -d /home/gfunk/github/turnbased-cards-demo/.tmp-cdp-smoke 2>&1
 ls -d /home/gfunk/github/turnbased-cards-demo/web-react/test-results 2>&1
 ```
 

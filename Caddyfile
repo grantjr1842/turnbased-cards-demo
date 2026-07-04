@@ -1,0 +1,10 @@
+uno.mystack.dev {
+	reverse_proxy localhost:5173
+
+	# Colyseus WebSocket + API
+	handle_path /ws* {
+		reverse_proxy localhost:2567
+	}
+	reverse_proxy /healthz localhost:2567
+	reverse_proxy /metrics localhost:2567
+}

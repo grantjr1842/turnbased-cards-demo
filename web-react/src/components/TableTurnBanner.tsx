@@ -4,6 +4,7 @@ export interface TurnBanner {
   name: string;
   emoji: string;
   themeColor: string;
+  subtitle: string;
 }
 
 interface TableTurnBannerProps {
@@ -23,7 +24,7 @@ export function TableTurnBanner({ turnBanner }: TableTurnBannerProps) {
       >
         <span className="banner-emoji">{turnBanner.emoji}</span>
         <h2>{turnBanner.name}</h2>
-        <p>{turnBanner.name === "Your Turn" ? "Make your move!" : "Thinking..."}</p>
+        <p>{turnBanner.subtitle}</p>
       </div>
     </div>
   );

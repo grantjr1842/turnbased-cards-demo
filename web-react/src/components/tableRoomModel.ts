@@ -26,7 +26,7 @@ export const RULE_CARD_EXAMPLES: Array<{ card: CardSchema; title: string; text: 
   {
     card: { id: "rule-wild-draw4", cardType: "wild", color: "wild", value: "wild_draw4" },
     title: "Wild Draw 4",
-    text: "Choose a color and add 4 cards. If you had a matching color, the next player can challenge you.",
+    text: "Choose a color and add 4 cards. If you had a matching color, the next player can challenge it.",
   },
 ];
 
@@ -40,14 +40,14 @@ export const TUTORIAL_CARDS = [
   {
     eyebrow: "Step 2 of 3",
     title: "Draw when stuck",
-    text: "No matching card? Tap the face-down deck. It glows when drawing is your best move.",
+    text: "No matching card? Tap the face-down deck to draw a card.",
     target: "Tap the deck to draw one card",
   },
   {
     eyebrow: "Step 3 of 3",
     title: "Play from your hand",
-    text: "Playable cards glow below the table. Tap once to inspect and again to play. When prompted at one card, tap UNO.",
-    target: "Your playable cards glow",
+    text: "Playable cards sit below the table. Tap a card to select it, then tap again or press Enter to play. When prompted at one card, tap UNO.",
+    target: "Your playable cards are ready",
   },
 ] as const;
 

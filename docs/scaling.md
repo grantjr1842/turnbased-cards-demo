@@ -1,5 +1,9 @@
 # Scaling with Redis Presence
 
+> **Incident response:** If Redis is currently down or unreachable, see
+> the [Redis Presence Connection Lost runbook](./incident-response/redis-presence-lost.md)
+> for symptoms, detection, and immediate mitigation.
+
 This document covers horizontal scaling of the Colyseus game server using
 `@colyseus/redis-presence` for multi-process and multi-node deployments.
 

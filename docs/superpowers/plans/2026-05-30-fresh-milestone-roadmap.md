@@ -10,7 +10,7 @@ Acceptance:
 - Server CI runs when shared rules change.
 
 Tasks:
-- [x] Update Client CI path filters for `web-react/`, `server/`, `shared/`, and `scripts/smoke-web-agent-browser.sh`.
+- [x] Update Client CI path filters for `web-react/`, `server/`, `shared/`, and `scripts/smoke-cdp.sh`.
 - [x] Update Client CI smoke job to install `server/` dependencies before running the root smoke script.
 - [x] Update Server CI path filters to include `shared/`.
 - [x] Verify CI YAML remains syntactically valid.
@@ -45,14 +45,14 @@ Tasks:
 ## Milestone 4 - Browser Runtime Smoke
 
 Acceptance:
-- The approved `agent-browser` smoke test starts the full stack.
+- The approved `browser automation` smoke test starts the full stack.
 - Desktop and mobile sessions join a live table.
 - The smoke test attempts a real play or draw.
 - Relevant browser console/page errors fail the script.
 - Screenshots are written for review.
 
 Tasks:
-- [x] Run `./scripts/smoke-web-agent-browser.sh`.
+- [x] Run `./scripts/smoke-cdp.sh`.
 - [x] Confirm desktop screenshots are produced.
 - [x] Confirm mobile screenshots are produced.
 
@@ -71,7 +71,7 @@ Tasks:
 - [x] Run `cd server && npm run build`.
 - [x] Run `cd web-react && npm run lint`.
 - [x] Run `cd web-react && npm run build`.
-- [x] Run `./scripts/smoke-web-agent-browser.sh`.
+- [x] Run `./scripts/smoke-cdp.sh`.
 - [x] Update this file with final evidence.
 
 ## Evidence
@@ -82,7 +82,7 @@ Fresh verification on 2026-05-30 after the final whitespace cleanup:
 - `cd server && npm run build` passed.
 - `cd web-react && npm run lint` passed.
 - `cd web-react && npm run build` passed.
-- `./scripts/smoke-web-agent-browser.sh` passed and wrote desktop/mobile screenshots under `.tmp-agent-browser/`.
-- `ls -l .tmp-agent-browser/web-react-game-{desktop,mobile}-*.png` confirmed the six expected screenshots exist with nonzero file sizes.
+- `./scripts/smoke-cdp.sh` passed and wrote desktop/mobile screenshots under `.tmp-cdp-smoke/`.
+- `ls -l .tmp-cdp-smoke/web-react-game-{desktop,mobile}-*.png` confirmed the six expected screenshots exist with nonzero file sizes.
 - `git diff --check` passed.
 - `python3`/PyYAML parsed `.github/workflows/client.yml` and `.github/workflows/server.yml`.

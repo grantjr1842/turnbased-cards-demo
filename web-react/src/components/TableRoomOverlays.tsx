@@ -50,9 +50,11 @@ export function TableRoomOverlays({
 }: TableRoomOverlaysProps) {
   return (
     <>
-      {turnBanner && <TableTurnBanner turnBanner={turnBanner} />}
+      <div className="table-overlay-stack" aria-live="polite" aria-atomic="true">
+        {turnBanner && <TableTurnBanner turnBanner={turnBanner} />}
+        {cardAlert && <TableCardAlert cardAlert={cardAlert} />}
+      </div>
       <TableReverseSweep showReverseSweep={showReverseSweep} direction={direction} />
-      {cardAlert && <TableCardAlert cardAlert={cardAlert} />}
       {showRules && (
         <TableRulesDrawer
           colorblindMode={colorblindMode}

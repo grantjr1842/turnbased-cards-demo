@@ -1,17 +1,39 @@
 import "./index.css";
 import { Client, Room } from "@colyseus/sdk";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Lobby } from "./components/Lobby";
 import { TableRoom } from "./components/TableRoom";
+import {
+  getRoomDisconnectMessage,
+  getRoomJoinErrorMessage,
+  isNormalRoomClose,
+} from "./connectionFeedback";
 import type { Mode, Toast, UnoState } from "./gameTypes";
 import { snapshotState } from "./stateSnapshot";
 import { readStorage, writeStorage } from "./storage";
 import { ErrorBoundary } from "./sentry";
 import "./sentry";
 
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:2567";
+const configuredWsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:2567";
+const isLocalHost =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1" ||
+  window.location.hostname === "::1";
+const WS_URL = import.meta.env.DEV && isLocalHost ? "ws://localhost:2567" : configuredWsUrl;
 const client = new Client(WS_URL);
+const debugTurnScenario =
+  import.meta.env.DEV && isLocalHost
+    ? (new URLSearchParams(window.location.search).get("debugTurn") as "lockedHand" | "drawPenalty" | null)
+    : null;
+
+declare global {
+  interface Window {
+    __unoTestHooks?: {
+      closeCurrentRoom: (code?: number) => void;
+    };
+  }
+}
 
 function App() {
   const [mode, setMode] = useState<Mode>("lobby");
@@ -21,34 +43,60 @@ function App() {
   const [disconnected, setDisconnected] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const connectGeneration = useRef(0);
+  const leaveRequested = useRef(false);
   const toastTimers = useRef<Set<number>>(new Set());
+  // Refs mirror the latest mode/phase so leaveRoom can stay referentially
+  // stable (useCallback) without reading stale values. This keeps <TableRoom>
+  // memo from breaking on every App re-render (e.g. toast add/remove).
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const phaseRef = useRef(state?.phase);
+  phaseRef.current = state?.phase;
 
   // Persisted accessibility state
   const [colorblindMode, setColorblindMode] = useState(() => {
     return readStorage("uno_colorblind") === "true";
   });
 
-  const toggleColorblindMode = () => {
+  const toggleColorblindMode = useCallback(() => {
     setColorblindMode((prev) => {
       const next = !prev;
       writeStorage("uno_colorblind", String(next));
       return next;
     });
-  };
+  }, []);
 
-  const showToast = (message: string, kind: Toast["kind"] = "info", duration = 2500) => {
-    const id = `toast-${Date.now()}-${Math.random()}`;
-    setToasts((prev) => [...prev, { id, message, kind }]);
-    const timerId = window.setTimeout(() => {
-      toastTimers.current.delete(timerId);
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, duration);
-    toastTimers.current.add(timerId);
-  };
+  const showToast = useCallback(
+    (message: string, kind: Toast["kind"] = "info", duration = 2500) => {
+      const id = `toast-${Date.now()}-${Math.random()}`;
+      setToasts((prev) => [...prev, { id, message, kind }]);
+      const timerId = window.setTimeout(() => {
+        toastTimers.current.delete(timerId);
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, duration);
+      toastTimers.current.add(timerId);
+    },
+    [],
+  );
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });
   }, [mode]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !isLocalHost) return;
+    const hooks = {
+      closeCurrentRoom: (code = 4000) => {
+        room?.connection.close(code, "test disconnect");
+      },
+    };
+    window.__unoTestHooks = hooks;
+    return () => {
+      if (window.__unoTestHooks === hooks) {
+        delete window.__unoTestHooks;
+      }
+    };
+  }, [room]);
 
   useEffect(() => {
     return () => {
@@ -59,7 +107,9 @@ function App() {
 
   async function connect(connectRoom: Promise<Room<UnoState>>) {
     const generation = ++connectGeneration.current;
+    leaveRequested.current = false;
     setError("");
+    setDisconnected(false);
     setMode("joining");
     try {
       const joined = await connectRoom;
@@ -73,74 +123,54 @@ function App() {
       });
       joined.onLeave((code) => {
         if (generation !== connectGeneration.current) return;
+        const wasRequested = leaveRequested.current;
+        leaveRequested.current = false;
         setRoom(null);
         setState(null);
         setMode("lobby");
-        if (code !== 1000 && code !== 1001) {
-          // Abnormal close — show toast but don't override error
+        setDisconnected(false);
+
+        if (!wasRequested) {
+          const disconnectMessage = getRoomDisconnectMessage(code);
+          if (disconnectMessage) {
+            setError(disconnectMessage);
+            showToast(disconnectMessage, "warning");
+          }
         }
       });
       joined.onError((code) => {
         if (generation !== connectGeneration.current) return;
-        if (code === 1000) {
-          // Normal close
-          setDisconnected(false);
-        } else {
-          // Abnormal disconnect
-          setDisconnected(true);
-        }
+        setDisconnected(!isNormalRoomClose(code));
       });
       setRoom(joined);
       setState(snapshotState(joined.state));
+      setError("");
+      setDisconnected(false);
       setMode("table");
     } catch (err: unknown) {
       if (generation !== connectGeneration.current) return;
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      // Colyseus match-make error codes
-      const colyseusErr = err as Error & { code?: number };
-      if (
-        colyseusErr.code === 1 ||
-        errorMessage.includes("not found") ||
-        errorMessage.includes("No such room")
-      ) {
-        setError("Room not found. Check the invite code and try again.");
-      } else if (colyseusErr.code === 2 || errorMessage.includes("full")) {
-        setError("Room is full. The table already has the maximum number of players.");
-      } else if (
-        colyseusErr.code === 3 ||
-        errorMessage.includes("password") ||
-        errorMessage.includes("invalid")
-      ) {
-        setError("Wrong password. Please check the room password and try again.");
-      } else if (
-        errorMessage.includes("fetch") ||
-        errorMessage.includes("network") ||
-        errorMessage.includes("ECONNREFUSED") ||
-        errorMessage.includes("WebSocket")
-      ) {
-        setError("Server unreachable. Make sure the game server is running.");
-      } else {
-        setError(`Could not join the room: ${errorMessage}`);
-      }
+      setError(getRoomJoinErrorMessage(err));
       setMode("lobby");
     }
   }
 
-  function leaveRoom() {
+  const leaveRoom = useCallback(() => {
     // Confirm mid-match departure to prevent accidental leaves
-    if (mode === "table" && state?.phase === "playing") {
+    if (modeRef.current === "table" && phaseRef.current === "playing") {
       const confirmLeave = window.confirm(
         "Leave the game? You will forfeit this match if you leave mid-game.",
       );
       if (!confirmLeave) return;
     }
     connectGeneration.current += 1;
+    leaveRequested.current = true;
     void room?.leave().catch(() => undefined);
     setRoom(null);
     setState(null);
+    setError("");
     setMode("lobby");
     setDisconnected(false);
-  }
+  }, [room]);
 
   return (
     <>
@@ -166,16 +196,19 @@ function App() {
             onToggleColorblind={toggleColorblindMode}
             showToast={showToast}
             disconnected={disconnected}
+            debugTurnScenario={debugTurnScenario}
           />
         </ErrorBoundary>
       ) : (
         <Lobby
           busy={mode === "joining"}
           error={error}
-          onQuickPlay={(options) => connect(client.joinOrCreate("uno", options))}
+          onQuickPlay={(options) => connect(client.create("uno", options))}
           onJoinCode={(roomId, options) => connect(client.joinById(roomId, options))}
-          onWatch={(roomId) =>
-            connect(client.joinById(roomId, { name: "Spectator", spectator: true }))
+          onWatch={(roomId, options) =>
+            connect(
+              client.joinById(roomId, { ...options, spectator: true }),
+            )
           }
           colorblindMode={colorblindMode}
           onToggleColorblind={toggleColorblindMode}
@@ -196,7 +229,15 @@ function App() {
 
 const root = createRoot(document.getElementById("root")!);
 root.render(
-  <ErrorBoundary fallback={<main className="crash-screen"><section><h1>Something went wrong</h1></section></main>}>
+  <ErrorBoundary
+    fallback={
+      <main className="crash-screen">
+        <section>
+          <h1>Something went wrong</h1>
+        </section>
+      </main>
+    }
+  >
     <App />
   </ErrorBoundary>,
 );
@@ -206,7 +247,11 @@ if ("serviceWorker" in navigator) {
   const registerServiceWorker = () => {
     navigator.serviceWorker
       .register("/sw.js")
-      .then((reg) => console.log("[SW] registered", reg.scope))
+      .then((reg) => {
+        if (import.meta.env.DEV) {
+          console.debug("[SW] registered", reg.scope);
+        }
+      })
       .catch((err) => console.warn("[SW] registration failed", err));
   };
 

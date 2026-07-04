@@ -1,19 +1,32 @@
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 
 interface TurnTimerRingProps {
   active: boolean;
   turnDeadline: number | undefined;
 }
 
+const RADIUS = 22;
+const CIRC = 2 * Math.PI * RADIUS;
+
 export function TurnTimerRing({ active, turnDeadline }: TurnTimerRingProps) {
-  const [pct, setPct] = useState(100);
-  const [critical, setCritical] = useState(false);
+  const circleRef = useRef<SVGCircleElement>(null);
+  const capRef = useRef<SVGCircleElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
     if (!active || !turnDeadline) {
-      setPct(0);
-      setCritical(false);
+      if (circleRef.current) {
+        circleRef.current.style.strokeDashoffset = `${CIRC}`;
+        circleRef.current.style.stroke = "var(--gold)";
+      }
+      if (capRef.current) {
+        capRef.current.setAttribute("cx", "26");
+        capRef.current.setAttribute("cy", String(26 - RADIUS));
+        capRef.current.setAttribute("r", "3.2");
+        capRef.current.classList.remove("critical");
+      }
+      if (svgRef.current) svgRef.current.classList.remove("critical");
       return;
     }
 
@@ -24,9 +37,26 @@ export function TurnTimerRing({ active, turnDeadline }: TurnTimerRingProps) {
     const update = () => {
       const now = Date.now();
       const remaining = turnDeadline - now;
-      const newPct = Math.max(0, Math.min(100, (remaining / total) * 100));
-      setPct(newPct);
-      setCritical(remaining < 2500);
+      const pct = Math.max(0, Math.min(100, (remaining / total) * 100));
+      const isCritical = remaining < 2500;
+
+      if (circleRef.current) {
+        circleRef.current.style.strokeDashoffset = `${CIRC - (pct / 100) * CIRC}`;
+        circleRef.current.style.stroke = isCritical ? "var(--card-red)" : "var(--gold)";
+      }
+      if (svgRef.current) {
+        svgRef.current.classList.toggle("critical", isCritical);
+      }
+      // Drive the cap dot via direct DOM mutation so the countdown never
+      // triggers a React re-render (avoids ~60 setState/sec).
+      if (capRef.current) {
+        const angle = (-90 + (pct / 100) * 360) * (Math.PI / 180);
+        capRef.current.setAttribute("cx", String(26 + Math.cos(angle) * RADIUS));
+        capRef.current.setAttribute("cy", String(26 + Math.sin(angle) * RADIUS));
+        const capCritical = pct > 0 && pct < 12;
+        capRef.current.setAttribute("r", capCritical ? "3.8" : "3.2");
+        capRef.current.classList.toggle("critical", capCritical);
+      }
 
       if (remaining > 0) {
         frame = requestAnimationFrame(update);
@@ -40,13 +70,11 @@ export function TurnTimerRing({ active, turnDeadline }: TurnTimerRingProps) {
   if (!active) return null;
 
   const strokeWidth = 3;
-  const radius = 22;
-  const circ = 2 * Math.PI * radius;
-  const offset = circ - (pct / 100) * circ;
 
   return (
     <svg
-      className={`turn-timer-svg ${critical ? "critical" : ""}`}
+      ref={svgRef}
+      className="turn-timer-svg"
       width="52"
       height="52"
       viewBox="0 0 52 52"
@@ -54,24 +82,33 @@ export function TurnTimerRing({ active, turnDeadline }: TurnTimerRingProps) {
       <circle
         cx="26"
         cy="26"
-        r={radius}
+        r={RADIUS}
         className="turn-timer-track"
         fill="none"
         stroke="rgba(255, 255, 255, 0.05)"
         strokeWidth={strokeWidth}
       />
       <circle
+        ref={circleRef}
         cx="26"
         cy="26"
-        r={radius}
+        r={RADIUS}
         className="turn-timer-progress"
         fill="none"
-        stroke={critical ? "var(--card-red)" : "var(--gold)"}
+        stroke="var(--gold)"
         strokeWidth={strokeWidth}
-        strokeDasharray={circ}
-        strokeDashoffset={offset}
+        strokeDasharray={CIRC}
+        strokeDashoffset={CIRC}
         transform="rotate(-90 26 26)"
         style={{ transition: "stroke-dashoffset 0.1s linear, stroke 0.2s ease" } as CSSProperties}
+      />
+      <circle
+        ref={capRef}
+        cx="26"
+        cy={26 - RADIUS}
+        r="3.2"
+        className="turn-timer-cap"
+        fill="var(--gold)"
       />
     </svg>
   );

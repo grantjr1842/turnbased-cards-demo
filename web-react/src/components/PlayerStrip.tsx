@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { memo, type CSSProperties } from "react";
 import { AvatarIcon } from "./AvatarIcon";
 import { TurnTimerRing } from "./TurnTimerRing";
 import type { PlayerSchema } from "../gameTypes";
@@ -20,7 +20,7 @@ interface PlayerStripProps {
   botEmotions: Record<number, string>;
 }
 
-export function PlayerStrip({
+export const PlayerStrip = memo(function PlayerStrip({
   players,
   activeSeat,
   turnDeadline,
@@ -99,4 +99,4 @@ export function PlayerStrip({
       })}
     </>
   );
-}
+});

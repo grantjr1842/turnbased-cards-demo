@@ -34,12 +34,12 @@ export function TableTopbar({
         <div className="topbar-stat">
           <span>Turn status</span>
           <strong style={{ color: isMyTurn ? "var(--gold)" : "var(--text-primary)" }}>
-            {isMyTurn ? "Your Turn!" : currentPlayerLabel}
+            {isMyTurn ? "Your move" : `${currentPlayerLabel} to act`}
           </strong>
         </div>
         <div className="topbar-stat">
-          <span>Play order</span>
-          <strong>{direction === -1 ? "Counter-Clockwise ◀" : "Clockwise ▶"}</strong>
+          <span>Turn order</span>
+          <strong>{direction === -1 ? "Counter-clockwise" : "Clockwise"}</strong>
         </div>
       </div>
 
@@ -56,7 +56,7 @@ export function TableTopbar({
           ♿ {colorblindMode ? "CB: On" : "CB: Off"}
         </button>
         <button className="ghost-btn" data-testid="topbar-rules" onClick={onShowRules} type="button">
-          Rules (?)
+          Rules
         </button>
         <button className="ghost-btn" onClick={onLeave} type="button">
           Leave Game

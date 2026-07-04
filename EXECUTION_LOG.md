@@ -35,35 +35,42 @@
 - [x] **1.1.7** Bonus finding: removed stale `list.txt` (pointed at
   `/home/gfunk/...`, different dev's machine).
 
-### 1.2 Eliminate per-card re-renders in the table view  [ ]
-- [ ] **1.2.1** Add a `why-did-you-render` style dev-only logger
+### 1.2 Eliminate per-card re-renders in the table view  [~]
+- [~] **1.2.1** Add a `why-did-you-render` style dev-only logger
   (or use React DevTools Profiler) and capture the current render
-  rate on a typical 4-player game in progress.
-- [ ] **1.2.2** Identify the top 3 hot paths in
-  `useTableRoomController.ts` and `TableRoom.tsx` (the controller
-  re-renders are likely the dominant cost).
-- [ ] **1.2.3** Apply `React.memo` to `HandCardItem` and `TableCardAlert`
+  rate on a typical 4-player game in progress. — Profiler numbers
+  captured in `04d7a92` baseline measurements.
+- [x] **1.2.2** Identify the top 3 hot paths in
+  `useTableRoomController.ts` and `TableRoom.tsx`. — Identified in
+  `6445404` analysis.
+- [x] **1.2.3** Apply `React.memo` to `HandCardItem` and `TableCardAlert`
   with stable prop comparators. Wrap callback props in `useCallback`
-  in the parent.
-- [ ] **1.2.4** Slice the Colyseus state subscriptions so a card-list
+  in the parent. (commit: `6445404`)
+- [~] **1.2.4** Slice the Colyseus state subscriptions so a card-list
   re-render doesn't trigger an opponent-strip re-render and vice
-  versa.
-- [ ] **1.2.5** Re-run the profiler. Render rate should drop
-  measurably. Commit with before/after numbers in the message body.
-- [ ] **1.2.6** Add a Playwright (or the existing agent-browser
+  versa. — Partially addressed by `TurnTimerRing` refactor in
+  `f4e78c8`; full subscription slicing remains open.
+- [x] **1.2.5** Re-run the profiler. Render rate dropped (no React
+  re-render per animation frame after `f4e78c8` DOM-mutation
+  refactor). (commit: `f4e78c8`)
+- [ ] **1.2.6** Add a Playwright (or the existing browser automation
   smoke) assertion that FPS stays above 30 during a 4-player
   game in progress. Pin the threshold so future regressions fail.
 
-### 1.3 Asset compression pass  [ ]
-- [ ] **1.3.1** Add `oxipng` to the client `devDependencies` and a
+### 1.3 Asset compression pass  [~]
+- [x] **1.3.1** Add `oxipng` to the client `devDependencies` and a
   `prebuild` (or `pretest:smoke`) script that compresses PNGs in
-  `web-react/public/`.
-- [ ] **1.3.2** Run the compression on the existing card PNGs and
+  `web-react/public/`. (commit: `20f1664`)
+- [x] **1.3.2** Run the compression on the existing card PNGs and
   the atlas from 1.1. Record the size delta in the commit message.
-- [ ] **1.3.3** Verify the smoke test still passes (compressed
-  images are pixel-identical to the originals).
-- [ ] **1.3.4** Add a CI check (or local pre-commit hook) that
+  (commit: `21558ab`)
+- [~] **1.3.3** Verify the smoke test still passes (compressed
+  images are pixel-identical to the originals). — Compression
+  pipeline in place via `prebuild`; full smoke verification of the
+  compressed assets is still open.
+- [x] **1.3.4** Add a CI check (or local pre-commit hook) that
   fails if a new PNG lands without a compressed counterpart.
+  (commit: `aff3fbd`)
 
 ## Epic 2 — Server Scalability and Architecture  [ ]
 

@@ -19,7 +19,7 @@ If the environment has no display server, wrap the smoke run with `xvfb-run`:
 xvfb-run -a npm run test:smoke
 ```
 
-The smoke runner writes screenshots and stitched media to `../.tmp-agent-browser/`.
+The smoke runner writes screenshots and stitched media to `../.tmp-cdp-smoke/`.
 
 ## Browser Debugging
 

@@ -3,7 +3,7 @@ import type { Room } from "@colyseus/sdk";
 import type { ActionBubble } from "./PlayerStrip";
 import { sfx } from "../audio/sfx";
 import { AVATAR_SYMBOLS, AVATAR_THEMES } from "../tableConfig";
-import { cardLabel, isPlayable, localPlayer, parsePlayerName, statePlayers } from "../gameHelpers";
+import { cardLabel, isPlayable, parsePlayerName, statePlayers } from "../gameHelpers";
 import { updateStats } from "../stats";
 import { useDialogFocus } from "../hooks/useDialogFocus";
 import { getHandLayout, getTutorialCards } from "./tableRoomModel";
@@ -14,9 +14,11 @@ import {
   buildGuidanceState,
   buildMeSummary,
   buildRosterEntries,
+  buildTurnCoachState,
   getActivePlayerThemeColor,
   getSpotlightPos,
   isTutorialCompleteFlagSet,
+  shouldEmphasizeDrawDeck,
   sortHand,
 } from "./tableRoomControllerLogic";
 import type { CardSchema, Toast, UnoColor, UnoState } from "../gameTypes";
@@ -29,6 +31,7 @@ export interface TableRoomControllerProps {
   onToggleColorblind: () => void;
   showToast: (message: string, kind?: Toast["kind"]) => void;
   disconnected: boolean;
+  debugTurnScenario?: "lockedHand" | "drawPenalty" | null;
 }
 
 interface CardFlight {
@@ -43,10 +46,22 @@ interface CardFlight {
   animating: boolean;
 }
 
+const TRAIL_SPARKLES = ["✨", "🌟", "💫", "⭐"];
+const WILD_BURST_EMOJIS = ["🟥", "🟦", "🟩", "🟨", "✨", "💥", "🌈", "⭐"];
+const BURST_EMOJIS = ["✨", "🔥", "🎉", "🌟", "💥", "🃏"];
+const FIRE_EMOJIS = ["🔥", "💥", "⚡", "😈"];
+
+// Stable fallback used when the schema has not yet produced a discard pile.
+// Keeping it as a module-level constant avoids re-allocating `[]` on every
+// render and gives downstream consumers (memoized children) a referentially
+// stable empty array to compare against.
+const EMPTY_DISCARD_PILE: CardSchema[] = [];
+
 interface TurnBanner {
   name: string;
   emoji: string;
   themeColor: string;
+  subtitle: string;
 }
 
 interface ParticleData {
@@ -60,23 +75,40 @@ interface ParticleData {
 }
 
 export function useTableRoomController(props: TableRoomControllerProps) {
-  const { room, state, showToast } = props;
-  const me = localPlayer(room, state);
-  const players = statePlayers(state);
-  const discardPile = state?.discardPile ?? [];
-  const topCard = discardPile[discardPile.length - 1] ?? null;
+  const { room, state, showToast, debugTurnScenario } = props;
+  // Memoize the players array against `state` only, so local-only re-renders
+  // (particles, card flights, toasts) don't allocate a fresh array and
+  // invalidate every downstream memo/effect keyed on `players`.
+  const players = useMemo(() => statePlayers(state), [state]);
+  const me = room ? players.find((player) => player.sessionId === room.sessionId) ?? null : null;
+  const discardPile = state?.discardPile ?? EMPTY_DISCARD_PILE;
+  const topCard = discardPile.length > 0 ? discardPile[discardPile.length - 1] : null;
 
   const [sortBy, setSortBy] = useState<"none" | "color" | "value">("color");
-  const hand = sortHand(me?.hand ?? [], sortBy);
+  const hand = useMemo(
+    () => sortHand(me?.hand ?? [], sortBy),
+    [me?.hand, sortBy],
+  );
 
   const [wildFor, setWildFor] = useState<CardSchema | null>(null);
   const [chatText, setChatText] = useState("");
   const currentPlayer = players.find((player) => player.seatIndex === state?.currentPlayer);
-  const currentPlayerLabel = currentPlayer ? parsePlayerName(currentPlayer.name).name : "Waiting";
+  const currentPlayerLabel = useMemo(
+    () => (currentPlayer ? parsePlayerName(currentPlayer.name).name : "Waiting"),
+    [currentPlayer],
+  );
   const activePlayerThemeColor = useMemo(() => getActivePlayerThemeColor(currentPlayer), [currentPlayer]);
-  const meSummary = buildMeSummary(me, state?.spectatorCount ?? 0);
-  const rosterEntries = buildRosterEntries(players, me?.sessionId, state?.currentPlayer);
+  const meSummary = useMemo(
+    () => buildMeSummary(me, state?.spectatorCount ?? 0),
+    [me, state?.spectatorCount],
+  );
+  const rosterEntries = useMemo(
+    () => buildRosterEntries(players, me?.sessionId, state?.currentPlayer),
+    [players, me?.sessionId, state?.currentPlayer],
+  );
   const isMyTurn = !!me && me.seatIndex === state?.currentPlayer && state?.winner === -1;
+  const effectiveIsMyTurn =
+    debugTurnScenario === "lockedHand" ? false : debugTurnScenario === "drawPenalty" ? true : isMyTurn;
   const spotlightPos = useMemo(
     () =>
       getSpotlightPos({
@@ -115,7 +147,6 @@ export function useTableRoomController(props: TableRoomControllerProps) {
   });
 
   const prevCurrentPlayer = useRef<number>(-1);
-  const prevDiscardPile = useRef<CardSchema[]>([]);
   const prevPlayersHandCounts = useRef<Record<number, number>>({});
   const activeTimers = useRef<Set<number>>(new Set());
   const activeAnimationFrames = useRef<Set<number>>(new Set());
@@ -129,6 +160,7 @@ export function useTableRoomController(props: TableRoomControllerProps) {
   const lastIsMyTurn = useRef(false);
   const matchStartTime = useRef<number | null>(null);
   const lastDiscardCount = useRef(0);
+  const stateDiscardInitialized = useRef(false);
   const lastHandCount = useRef(0);
   const lastWinner = useRef(-1);
   const lastUno = useRef(-1);
@@ -224,8 +256,7 @@ export function useTableRoomController(props: TableRoomControllerProps) {
         const currX = startX + (endX - startX) * easeT;
         const currY = startY + (endY - startY) * easeT;
 
-        const sparkles = ["✨", "🌟", "💫", "⭐"];
-        const emoji = sparkles[Math.floor(Math.random() * sparkles.length)];
+        const emoji = TRAIL_SPARKLES[Math.floor(Math.random() * TRAIL_SPARKLES.length)];
         const sparkId = `trail-${Date.now()}-${Math.random()}`;
 
         setParticles((prev) => [
@@ -271,9 +302,7 @@ export function useTableRoomController(props: TableRoomControllerProps) {
   }, [trackTimeout]);
 
   const triggerParticles = (x: number, y: number, count = 20, isWild = false) => {
-    const emojis = isWild
-      ? ["🟥", "🟦", "🟩", "🟨", "✨", "💥", "🌈", "⭐"]
-      : ["✨", "🔥", "🎉", "🌟", "💥", "🃏"];
+    const emojis = isWild ? WILD_BURST_EMOJIS : BURST_EMOJIS;
     const newParticles: ParticleData[] = [];
     for (let i = 0; i < count; i += 1) {
       const angle = Math.random() * Math.PI * 2;
@@ -346,7 +375,6 @@ export function useTableRoomController(props: TableRoomControllerProps) {
 
     const playersSnapshot = players;
     const currentDiscard = state.discardPile?.length ?? 0;
-    const prevDiscard = prevDiscardPile.current;
     const prevSeat = prevCurrentPlayer.current;
     const currentSeat = state.currentPlayer ?? -1;
 
@@ -356,10 +384,19 @@ export function useTableRoomController(props: TableRoomControllerProps) {
         const av = parsePlayerName(activePlayer.name);
         const themeInfo = AVATAR_THEMES.find((t) => t.id === av.theme);
         const emoji = AVATAR_SYMBOLS.find((s) => s.id === av.symbol)?.emoji || "🐯";
+        const subtitle =
+          activePlayer.sessionId === room?.sessionId
+            ? (state.pendingDraw ?? 0) > 0
+              ? `Draw ${(state.pendingDraw ?? 0)} card${(state.pendingDraw ?? 0) === 1 ? "" : "s"} before you continue.`
+              : state.unoCaller === me?.seatIndex
+                ? "Call UNO before your next play."
+                : "Play a card or draw from the deck."
+            : `Turn passes to ${av.name}.`;
         setTurnBanner({
           name: activePlayer.sessionId === room?.sessionId ? "Your Turn" : av.name,
           emoji,
           themeColor: themeInfo ? themeInfo.primary : "var(--gold)",
+          subtitle,
         });
         trackTimeout(() => setTurnBanner(null), 1200);
 
@@ -466,9 +503,10 @@ export function useTableRoomController(props: TableRoomControllerProps) {
         }
       }
     }
+    if (currentDiscard > 0) stateDiscardInitialized.current = true;
     lastDiscardCount.current = currentDiscard;
 
-    if (state.phase === "playing" && prevDiscard.length > 0) {
+    if (state.phase === "playing" && stateDiscardInitialized.current) {
       playersSnapshot.forEach((player) => {
         const prevHandCount = prevPlayersHandCounts.current[player.seatIndex] ?? 0;
         const newHandCount = player.handCount ?? player.hand?.length ?? 0;
@@ -489,7 +527,7 @@ export function useTableRoomController(props: TableRoomControllerProps) {
               const rect = targetEl.getBoundingClientRect();
               const tx = rect.left + rect.width / 2;
               const ty = rect.top + rect.height / 2;
-              const fireEmojis = ["🔥", "💥", "⚡", "😈"];
+              const fireEmojis = FIRE_EMOJIS;
               const fireList: ParticleData[] = [];
               for (let i = 0; i < 15; i += 1) {
                 const sparkId = `fire-${Date.now()}-${Math.random()}-${i}`;
@@ -547,14 +585,14 @@ export function useTableRoomController(props: TableRoomControllerProps) {
       const uPlayer = playersSnapshot.find((p) => p.seatIndex === currentUno);
       if (uPlayer) {
         setCardAlert(`⚠️ ${parsePlayerName(uPlayer.name).name} HAS 1 CARD!`);
-        sfx.playChime();
+        sfx.playPluck();
         triggerParticles(window.innerWidth / 2, window.innerHeight / 2, 25);
       }
     } else if (currentUno === -1 && lastUno.current !== -1) {
       const uPlayer = playersSnapshot.find((p) => p.seatIndex === lastUno.current);
       if (uPlayer) {
         setCardAlert(`🎉 ${parsePlayerName(uPlayer.name).name} CALLED UNO!`);
-        sfx.playChime();
+        sfx.playUno();
         triggerParticles(window.innerWidth / 2, window.innerHeight / 2, 35);
       }
     }
@@ -605,14 +643,13 @@ export function useTableRoomController(props: TableRoomControllerProps) {
     lastHandCount.current = currentHand;
 
     prevCurrentPlayer.current = currentSeat;
-    prevDiscardPile.current = state.discardPile ? [...state.discardPile] : [];
 
     const counts: Record<number, number> = {};
     playersSnapshot.forEach((p) => {
       counts[p.seatIndex] = p.handCount ?? p.hand?.length ?? 0;
     });
     prevPlayersHandCounts.current = counts;
-  }, [state, me?.hand?.length, me, players, room, triggerBotEmotion, triggerFlight]);
+  }, [state, me, players, room, triggerBotEmotion, triggerFlight]);
 
   useEffect(() => {
     if (cardAlert) {
@@ -688,14 +725,31 @@ export function useTableRoomController(props: TableRoomControllerProps) {
   useEffect(() => {
     if (state?.phase === "playing" && matchStartTime.current === null) {
       matchStartTime.current = Date.now();
+      // A new match (first game or rematch) just started — reset the
+      // per-match cards-played counter so updateStats doesn't accumulate
+      // across consecutive games on the same room mount.
+      localPlayerCardsPlayed.current = 0;
     } else if (state?.phase !== "playing") {
       matchStartTime.current = null;
     }
   }, [state?.phase]);
 
+  // Keep the latest values the keydown handler needs in a ref so the listener
+  // can be registered once (deps []) instead of re-binding on every server
+  // state update. The handler always reads fresh values via the ref.
+  const keyHandlerState = useRef({
+    hand, selectedCardIdx, isMyTurn, state, me, playCard, room, tableReady, showRules, wildFor,
+  });
+  keyHandlerState.current = {
+    hand, selectedCardIdx, isMyTurn, state, me, playCard, room, tableReady, showRules, wildFor,
+  };
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (document.activeElement?.tagName === "INPUT") return;
+      const {
+        hand, selectedCardIdx, isMyTurn, state, me, playCard, room, tableReady, showRules, wildFor,
+      } = keyHandlerState.current;
 
       const key = event.key.toLowerCase();
       if (showRules) {
@@ -724,6 +778,7 @@ export function useTableRoomController(props: TableRoomControllerProps) {
       } else if (key === "arrowright") {
         setSelectedCardIdx((prev) => Math.min(hand.length - 1, prev + 1));
       } else if (event.key === " " || event.key === "Enter") {
+        event.preventDefault();
         if (selectedCardIdx >= 0 && selectedCardIdx < hand.length) {
           const card = hand[selectedCardIdx];
           if (isMyTurn && isPlayable(card, state)) {
@@ -749,7 +804,7 @@ export function useTableRoomController(props: TableRoomControllerProps) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [hand, selectedCardIdx, isMyTurn, state, me, playCard, room, tableReady, showRules, wildFor]);
+  }, []);
 
   const scrollHand = useCallback((direction: "left" | "right") => {
     if (!handScrollRef.current) return;
@@ -763,37 +818,74 @@ export function useTableRoomController(props: TableRoomControllerProps) {
   const hasPlayableCards = useMemo(() => {
     return hand.some((card) => isPlayable(card, state));
   }, [hand, state]);
+  const playableCardCount = useMemo(() => {
+    return hand.filter((card) => isPlayable(card, state)).length;
+  }, [hand, state]);
 
   const pendingDraw = state?.pendingDraw ?? 0;
   const mustCallUno = state?.unoCaller === me?.seatIndex;
-  const shouldDrawHint = isMyTurn && !hasPlayableCards && tableReady;
+  const effectivePendingDraw = debugTurnScenario === "drawPenalty" ? Math.max(2, pendingDraw) : pendingDraw;
+  const effectiveHasPlayableCards = debugTurnScenario === "drawPenalty" ? true : hasPlayableCards;
+  const effectivePlayableCardCount = debugTurnScenario === "drawPenalty" ? Math.max(1, playableCardCount) : playableCardCount;
+  const shouldDrawHint = shouldEmphasizeDrawDeck({
+    isMyTurn: effectiveIsMyTurn,
+    tableReady,
+    pendingDraw: effectivePendingDraw,
+    hasPlayableCards: effectiveHasPlayableCards,
+  });
 
   const selectedCard =
     selectedCardIdx >= 0 && selectedCardIdx < hand.length ? hand[selectedCardIdx] : null;
   const isSelectedPlayable = selectedCard ? isPlayable(selectedCard, state, hand) : false;
+  const turnCoach = useMemo(
+    () =>
+      buildTurnCoachState({
+        isMyTurn: effectiveIsMyTurn,
+        currentPlayerLabel,
+        activeColor: state?.activeColor,
+        pendingDraw: effectivePendingDraw,
+        mustCallUno,
+        hasPlayableCards: effectiveHasPlayableCards,
+        playableCardCount: effectivePlayableCardCount,
+        selectedCard,
+        isSelectedPlayable,
+      }),
+    [
+      currentPlayerLabel,
+      effectiveHasPlayableCards,
+      effectiveIsMyTurn,
+      isSelectedPlayable,
+      mustCallUno,
+      effectivePendingDraw,
+      effectivePlayableCardCount,
+      selectedCard,
+      state?.activeColor,
+    ],
+  );
 
   const { guidanceText, guidanceStatus } = useMemo(
     () =>
       buildGuidanceState({
         mustCallUno,
-        isMyTurn,
-        pendingDraw,
-        hasPlayableCards,
+        isMyTurn: effectiveIsMyTurn,
+        pendingDraw: effectivePendingDraw,
+        hasPlayableCards: effectiveHasPlayableCards,
+        playableCardCount: effectivePlayableCardCount,
         selectedCard,
         isSelectedPlayable,
       }),
-    [mustCallUno, isMyTurn, pendingDraw, hasPlayableCards, selectedCard, isSelectedPlayable],
+    [mustCallUno, effectiveIsMyTurn, effectivePendingDraw, effectiveHasPlayableCards, effectivePlayableCardCount, selectedCard, isSelectedPlayable],
   );
 
   const actionCallout = useMemo(
     () =>
       buildActionCallout({
         mustCallUno,
-        isMyTurn,
-        pendingDraw,
-        hasPlayableCards,
+        isMyTurn: effectiveIsMyTurn,
+        pendingDraw: effectivePendingDraw,
+        hasPlayableCards: effectiveHasPlayableCards,
       }),
-    [mustCallUno, isMyTurn, pendingDraw, hasPlayableCards],
+    [mustCallUno, effectiveIsMyTurn, effectivePendingDraw, effectiveHasPlayableCards],
   );
 
   const tutorialCards = getTutorialCards();
@@ -827,7 +919,8 @@ export function useTableRoomController(props: TableRoomControllerProps) {
     activePlayerThemeColor,
     meSummary,
     rosterEntries,
-    isMyTurn,
+    isMyTurn: effectiveIsMyTurn,
+    selectedCard,
     spotlightPos,
     hasOneCardWarning,
     roomCode,
@@ -856,17 +949,19 @@ export function useTableRoomController(props: TableRoomControllerProps) {
     wildDialogRef,
     hand,
     handCount,
+    playableCardCount: effectivePlayableCardCount,
     handMid,
     dynamicFanAngle,
     dynamicFanOffset,
     dynamicMarginValue,
     hasPlayableCards,
     actionCallout,
-    pendingDraw,
+    pendingDraw: effectivePendingDraw,
     mustCallUno,
     shouldDrawHint,
     guidanceText,
     guidanceStatus,
+    turnCoach,
     tutorial,
     tutorialCards,
     closeTutorial,

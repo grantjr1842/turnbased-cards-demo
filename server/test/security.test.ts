@@ -559,7 +559,7 @@ describe("Security: handleChat", () => {
       room["handleChat"](client, { text: maliciousText });
 
       expect(room.state.chatMessages.length).toBe(1);
-      // DOMPurify should strip the script tag
+      // sanitizePlainText() should strip the script tag
       expect(room.state.chatMessages[0].text).not.toContain("<script>");
       expect(room.state.chatMessages[0].text).toContain("Hello");
     });
@@ -921,5 +921,139 @@ describe("Security: handleChat edge cases", () => {
 
     expect(room.state.chatMessages.length).toBe(1);
     expect(room.state.chatMessages[0].text).toBe("Hello! 👋🎉🔥");
+  });
+});
+
+describe("Security: password and spectator interactions", () => {
+  it("requires the password for active players on a private room", () => {
+    const room = new UnoRoom();
+    room.onCreate({ password: "secret" });
+    registerCleanup(() => room.onDispose());
+
+    const client = makeTestClient("intruder-1");
+
+    expect(() => room.onJoin(client, { name: "Intruder" })).toThrowError("Invalid password");
+  });
+
+  it("rejects an active player who supplies the wrong password", () => {
+    const room = new UnoRoom();
+    room.onCreate({ password: "open-sesame" });
+    registerCleanup(() => room.onDispose());
+
+    const client = makeTestClient("intruder-2");
+
+    expect(() => room.onJoin(client, { name: "Wrong", password: "guess" })).toThrowError("Invalid password");
+  });
+
+  it("lets spectators join a passworded room without the password", () => {
+    const room = new UnoRoom();
+    room.onCreate({ password: "secret" });
+    registerCleanup(() => room.onDispose());
+
+    const spectatorClient = makeTestClient("watcher-1");
+
+    // Spectators must not be blocked by the password check.
+    expect(() => room.onJoin(spectatorClient, { name: "Watcher", spectator: true })).not.toThrow();
+    expect(room.state.spectatorCount).toBe(1);
+  });
+
+  it("does not consume a player seat when the wrong password is supplied", () => {
+    const room = new UnoRoom();
+    room.onCreate({ password: "secret" });
+    registerCleanup(() => room.onDispose());
+
+    const botCountBefore = Array.from(room.state.players.values()).filter((p) => p.isBot).length;
+
+    const client = makeTestClient("intruder-3");
+    expect(() => room.onJoin(client, { name: "Wrong", password: "no" })).toThrowError("Invalid password");
+
+    // Bots should still own every seat — the failed player must not have replaced one.
+    const botCountAfter = Array.from(room.state.players.values()).filter((p) => p.isBot).length;
+    expect(botCountAfter).toBe(botCountBefore);
+  });
+
+  it("rejects a spectator attempting to claim a seat via matchmake (no password bypass, no zombie seat)", () => {
+    const room = new UnoRoom();
+    room.onCreate({ password: "secret" });
+    registerCleanup(() => room.onDispose());
+    clearTimeout(room["turnTimeout"]);
+
+    const sentMessages: Array<{ type: string; data: unknown }> = [];
+    const spectatorClient = makeTestClient("watcher-mm", (type: string, data: unknown) => {
+      sentMessages.push({ type, data });
+    });
+    room.onJoin(spectatorClient, { name: "Watcher", spectator: true });
+    expect(room.state.spectatorCount).toBe(1);
+
+    room["handleMatchmake"](spectatorClient, { elo: 1000 });
+
+    // The spectator must be rejected and must NOT receive a seat.
+    const error = sentMessages.find(
+      (m) => m.type === "error" && (m.data as { code: string }).code === "SPECTATOR_NO_SEAT",
+    );
+    expect(error).toBeDefined();
+    const humanSeats = Array.from(room.state.players.values()).filter((p) => !p.isBot);
+    expect(humanSeats).toHaveLength(0);
+    // Still just a spectator — no dual-role zombie seat is left behind.
+    expect(room.state.spectatorCount).toBe(1);
+  });
+
+  it("requires the password for matchmake seat takeover on a passworded room", () => {
+    const room = new UnoRoom();
+    room.onCreate({ password: "secret" });
+    registerCleanup(() => room.onDispose());
+    clearTimeout(room["turnTimeout"]);
+
+    const sentMessages: Array<{ type: string; data: unknown }> = [];
+    const client = makeTestClient("intruder-mm", (type: string, data: unknown) => {
+      sentMessages.push({ type, data });
+    });
+    // Not a spectator, no password supplied.
+    room["handleMatchmake"](client, { elo: 1000 });
+
+    const error = sentMessages.find(
+      (m) => m.type === "error" && (m.data as { code: string }).code === "INVALID_PASSWORD",
+    );
+    expect(error).toBeDefined();
+    const humanSeats = Array.from(room.state.players.values()).filter((p) => !p.isBot);
+    expect(humanSeats).toHaveLength(0);
+  });
+
+  it("allows matchmake seat takeover with the correct password", () => {
+    const room = new UnoRoom();
+    room.onCreate({ password: "secret" });
+    registerCleanup(() => room.onDispose());
+    clearTimeout(room["turnTimeout"]);
+
+    const sentMessages: Array<{ type: string; data: unknown }> = [];
+    const client = makeTestClient("human-mm", (type: string, data: unknown) => {
+      sentMessages.push({ type, data });
+    });
+    room["handleMatchmake"](client, { elo: 1000, password: "secret", name: "Alice" });
+
+    const joined = sentMessages.find((m) => m.type === "matchmake_joined");
+    expect(joined).toBeDefined();
+    const player = room.findPlayerBySession("human-mm");
+    expect(player).not.toBeNull();
+    expect(player!.isBot).toBe(false);
+    expect(player!.connected).toBe(true);
+  });
+});
+
+describe("Security: rematch vote persistence on leave", () => {
+  it("only removes the departing player's own rematch vote (finished phase)", () => {
+    const { room, client } = createRoomWithHuman(0, "Alice");
+
+    // Simulate a finished game where seat 0 and seat 1 voted to rematch.
+    room.state.phase = "finished";
+    room.state.winner = 2;
+    room.state.rematchVotes.push(0);
+    room.state.rematchVotes.push(1);
+
+    room.onLeave(client);
+
+    // Seat 0's vote is gone; seat 1's vote survives (previously ALL were wiped).
+    expect(room.state.rematchVotes.includes(0)).toBe(false);
+    expect(room.state.rematchVotes.includes(1)).toBe(true);
   });
 });

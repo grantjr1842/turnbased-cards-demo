@@ -26,7 +26,7 @@
 
 ## 3. Clean Up Temp Directories
 
-**Problem:** `.tmp-agent-browser/` contains old agent-browser artifacts (todo-map.md, screenshot). `web-react/test-results/` contains local browser test artifacts.
+**Problem:** `.tmp-cdp-smoke/` contains old browser automation artifacts (todo-map.md, screenshot). `web-react/test-results/` contains local browser test artifacts.
 
 **Solution:** Remove both directories. `test-results/` is already gitignored (commit `9fe3fd9`), so only local cleanup needed.
 
@@ -36,4 +36,4 @@
 
 - [ ] Jekyll build succeeds on next push
 - [ ] `origin/feat/remaining-nice-to-haves` no longer appears in `git branch -r`
-- [ ] `.tmp-agent-browser/` and `web-react/test-results/` are removed
+- [ ] `.tmp-cdp-smoke/` and `web-react/test-results/` are removed

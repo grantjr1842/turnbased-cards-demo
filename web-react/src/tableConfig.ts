@@ -56,6 +56,13 @@ export const ATLAS_ORDER = [
   "back",
 ];
 
+// Precomputed lookup for fast atlas-index resolution.
+// `CardAtlasView` runs once per visible card per render, so we want
+// O(1) instead of O(n) `indexOf` on the 56-entry ATLAS_ORDER array.
+export const ATLAS_INDEX: ReadonlyMap<string, number> = new Map(
+  ATLAS_ORDER.map((id, idx) => [id, idx]),
+);
+
 export const AVATAR_SYMBOLS = [
   { id: "tiger", emoji: "🐯", name: "Neon Tiger" },
   { id: "dragon", emoji: "🐲", name: "Cosmic Dragon" },

@@ -1,5 +1,8 @@
 # TODO Map — turnbased-cards-demo
 
+> **Released: v1.0.0** — Inaugural production release (2026-07-04).
+> See [CHANGELOG.md](CHANGELOG.md) and [docs/releases/v1.0.0.md](docs/releases/v1.0.0.md).
+
 ## What's Done ✅
 
 ### Core Server
@@ -123,7 +126,7 @@
 
 - [x] **Verify GitHub Actions pass** — All CI workflows passing (Server CI, Client CI, Deploy).
 
-- [x] **Browser smoke tests need server running** — agent-browser smoke checks validate lobby; full gameplay requires server which is documented.
+- [x] **Browser smoke tests need server running** — CDP smoke checks validate lobby; full gameplay requires server which is documented.
 
 ### 🟢 Nice to Have (future enhancements) — ALL DONE
 
