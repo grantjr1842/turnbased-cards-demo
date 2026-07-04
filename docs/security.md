@@ -217,7 +217,7 @@ The `RateLimiter` class in `server/src/rateLimiter.ts` enforces per-player coold
 
 4. **Validate all client inputs** — already implemented via Zod schemas (`playCardSchema`, `chatSchema`) and manual validation in handlers.
 
-5. **Sanitize chat content** — already implemented via `sanitizePlainText()` with DOMPurify-style stripping.
+5. **Sanitize chat content** — already implemented via `sanitizePlainText()` (regex-based HTML tag, `javascript:` scheme, and control-character stripping).
 
 ## Schema Annotations Reference
 
