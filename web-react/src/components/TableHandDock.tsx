@@ -2,6 +2,7 @@ import type { CSSProperties, RefObject } from "react";
 import { HandCardItem } from "./HandCardItem";
 import type { CardSchema, UnoColor, UnoState } from "../gameTypes";
 import { cardLabel, isPlayable } from "../gameHelpers";
+import { sfx } from "../audio/sfx";
 import { isHandInteractive, type ActionCallout, type TurnCoachState } from "./tableRoomControllerLogic";
 import { TableTurnCoach } from "./TableTurnCoach";
 
@@ -83,7 +84,10 @@ export function TableHandDock({
             playCard(selectedCard);
           }
         }}
-        onCallUno={() => room?.send("uno")}
+        onCallUno={() => {
+          sfx.playUno();
+          room?.send("uno");
+        }}
         onFocusRules={onShowRules}
         onClearSelection={onClearSelection}
         selectedCardLabel={selectedCard ? cardLabel(selectedCard) : null}
@@ -141,6 +145,7 @@ export function TableHandDock({
             <button
               className="uno-btn"
               onClick={() => {
+                sfx.playUno();
                 room?.send("uno");
               }}
               type="button"

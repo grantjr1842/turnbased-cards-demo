@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { AmbientStardust } from "./AmbientStardust";
 import { CardAtlasView } from "./CardAtlasView";
 import { PlayDirectionRing } from "./PlayDirectionRing";
@@ -32,6 +32,8 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
   useTableRoomPerformance("TableRoom");
   const { room, state, onLeave, colorblindMode, onToggleColorblind, showToast, disconnected } = props;
   const { debugTurnScenario } = props;
+  // Inline callback props: the React Compiler auto-memoizes these based on
+  // their dependencies, so explicit useCallback is no longer needed.
   const {
     me,
     players,
@@ -104,6 +106,14 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
     debugTurnScenario,
   });
 
+  // Memoize the opponent list so <PlayerStrip> (memoized) only re-renders when
+  // the roster or the local player actually changes, not on every server tick
+  // or local animation frame.
+  const opponents = useMemo(
+    () => players.filter((player) => player.sessionId !== me?.sessionId),
+    [players, me?.sessionId],
+  );
+
   return (
     <TableShell>
       {hasOneCardWarning && <div className="uno-hazard-siren" />}
@@ -133,7 +143,7 @@ export const TableRoom = memo(function TableRoom(props: TableRoomProps) {
         <AmbientStardust />
         <div className="player-band">
           <PlayerStrip
-            players={players.filter((player) => player.sessionId !== me?.sessionId)}
+            players={opponents}
             activeSeat={state?.currentPlayer ?? -1}
             turnDeadline={state?.turnDeadline}
             skippedSeatIndex={skippedSeatIndex}

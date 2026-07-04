@@ -5,7 +5,7 @@ import { AvatarIcon } from "./AvatarIcon";
 import { AudioSettingsPanel } from "./AudioSettingsPanel";
 import { StatsDashboard } from "./StatsDashboard";
 import { LobbyShell } from "./LobbyShell";
-import { AVATAR_SYMBOLS, AVATAR_THEMES, ATLAS_ORDER } from "../tableConfig";
+import { AVATAR_SYMBOLS, AVATAR_THEMES, ATLAS_INDEX } from "../tableConfig";
 import { parsePlayerName } from "../gameHelpers";
 import { readStorage, writeStorage } from "../storage";
 
@@ -14,7 +14,7 @@ interface LobbyProps {
   error: string;
   onQuickPlay: (options: Record<string, unknown>) => void;
   onJoinCode: (roomId: string, options: Record<string, unknown>) => void;
-  onWatch: (roomId: string) => void;
+  onWatch: (roomId: string, options: Record<string, unknown>) => void;
   colorblindMode: boolean;
   onToggleColorblind: () => void;
 }
@@ -65,9 +65,9 @@ export function Lobby({
           <div className="lobby-hero-hand">
             {["red", "blue", "yellow", "green", "wild"].map((color, index) => {
               const fileKey = color === "wild" ? "wild" : `${color}_5`;
-              const tileIdx = ATLAS_ORDER.indexOf(fileKey);
-              const col = tileIdx !== -1 ? tileIdx % 10 : 52;
-              const row = tileIdx !== -1 ? Math.floor(tileIdx / 10) : 5;
+              const tileIdx = ATLAS_INDEX.get(fileKey) ?? 52;
+              const col = tileIdx % 10;
+              const row = Math.floor(tileIdx / 10);
               return (
                 <div
                   key={color}
@@ -220,8 +220,8 @@ export function Lobby({
           </button>
           <button
             className="secondary-btn"
-            disabled={!roomCode.trim() || busy}
-            onClick={() => onWatch(roomCode.trim())}
+            disabled={!roomCode.trim() || !validName || busy}
+            onClick={() => handleStart((opts) => onWatch(roomCode.trim(), opts))}
             type="button"
           >
             Watch table

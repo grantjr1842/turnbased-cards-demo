@@ -44,3 +44,43 @@ test("setVolume keeps the current value when passed an invalid number", () => {
     assert.equal(sfx.getVolume(), beforeInvalidUpdate);
   });
 });
+
+test("one-shot sound methods are safe to call without an AudioContext", () => {
+  withSoundState(() => {
+    // In the node test environment there is no AudioContext. The methods must
+    // initialize lazily, short-circuit cleanly, and never throw.
+    assert.doesNotThrow(() => sfx.playPluck());
+    assert.doesNotThrow(() => sfx.playSwish());
+    assert.doesNotThrow(() => sfx.playChime());
+    assert.doesNotThrow(() => sfx.playTurnAlert());
+    assert.doesNotThrow(() => sfx.playHeartbeat());
+    assert.doesNotThrow(() => sfx.playUno());
+    assert.doesNotThrow(() => sfx.playError());
+  });
+});
+
+test("muted state suppresses one-shot playback", () => {
+  withSoundState(() => {
+    sfx.setMuted(true);
+    // No AudioContext exists in the test env, but the muted branch must still
+    // short-circuit without producing any side effects.
+    assert.doesNotThrow(() => sfx.playPluck());
+    assert.doesNotThrow(() => sfx.playChime());
+    assert.equal(sfx.isMuted(), true);
+  });
+});
+
+test("one-shot play methods are no-arg (options object removed)", () => {
+  withSoundState(() => {
+    // Removing the unused OneShotOptions argument means the public API is a
+    // plain no-arg call. Anything that still passes an object would be a
+    // silent runtime no-op since the parameters are now ignored.
+    assert.equal(sfx.playPluck.length, 0);
+    assert.equal(sfx.playSwish.length, 0);
+    assert.equal(sfx.playChime.length, 0);
+    assert.equal(sfx.playTurnAlert.length, 0);
+    assert.equal(sfx.playHeartbeat.length, 0);
+    assert.equal(sfx.playUno.length, 0);
+    assert.equal(sfx.playError.length, 0);
+  });
+});

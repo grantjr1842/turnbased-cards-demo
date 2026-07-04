@@ -18,8 +18,14 @@ BROWSER_PORT="${BROWSER_PORT:-$(
 )}"
 
 cleanup() {
-  if [[ -n "${CLIENT_PID:-}" ]] && kill -0 "$CLIENT_PID" 2>/dev/null; then kill "$CLIENT_PID" 2>/dev/null || true; fi
-  if [[ -n "${SERVER_PID:-}" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then kill "$SERVER_PID" 2>/dev/null || true; fi
+  if [[ -n "${CLIENT_PID:-}" ]] && kill -0 "$CLIENT_PID" 2>/dev/null; then
+    kill "$CLIENT_PID" 2>/dev/null || true
+    kill -9 "$CLIENT_PID" 2>/dev/null || true
+  fi
+  if [[ -n "${SERVER_PID:-}" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
+    kill "$SERVER_PID" 2>/dev/null || true
+    kill -9 "$SERVER_PID" 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT INT TERM
 
@@ -86,6 +92,24 @@ async function joinTable(playerName) {
   await waitFor(cdp, 'document.querySelector(".game-shell") !== null', 30000);
 }
 
+async function assertUnexpectedDisconnectRecovery() {
+  await waitFor(
+    cdp,
+    'window.__unoTestHooks && typeof window.__unoTestHooks.closeCurrentRoom === "function"',
+    10000,
+  );
+  await evalScript(cdp, "window.__unoTestHooks.closeCurrentRoom()");
+  await waitFor(cdp, 'document.querySelector(".join-panel") !== null', 15000);
+  await waitFor(
+    cdp,
+    `(() => {
+      const toast = document.querySelector(".toast-warning");
+      return !!toast && (toast.textContent || "").includes("Connection lost. You were returned to the lobby.");
+    })()`,
+    15000,
+  );
+}
+
 await navigate(cdp, debugUrl("lockedHand"));
 await joinTable("Turn Smoke A");
 await waitFor(cdp, 'document.querySelector(".hand-card-wrapper.locked") !== null');
@@ -97,10 +121,15 @@ await joinTable("Turn Smoke B");
 await waitFor(cdp, 'document.querySelector(".draw-pile.guidance-pulse") !== null');
 await waitFor(cdp, '(function() { const el = document.querySelector(".draw-pile.guidance-pulse .draw-guidance-tooltip span"); if (!el) return false; const text = (el.textContent || "").trim(); return text.length > 0 && (text === "Draw a card!" || /^Take \\+[0-9]+$/.test(text)); })()');
 
+await navigate(cdp, baseUrl);
+await joinTable("Turn Smoke C");
+await assertUnexpectedDisconnectRecovery();
+
 await checkClean(cdp, "turn-actions");
 cdp.close();
 cleanupChrome(browser);
 console.log("turn-action smoke passed");
+process.exit(0);
 NODE
 }
 

@@ -25,7 +25,7 @@ export function useTableRoomPerformance(componentName: string): RenderMetrics {
         metricsRef.current.renderCount;
 
       if (import.meta.env.DEV && metricsRef.current.renderCount % 50 === 0) {
-        console.log(
+        console.debug(
           `[Perf] ${componentName}: ${metricsRef.current.renderCount} renders, ` +
             `avg ${metricsRef.current.avgRenderTime.toFixed(2)}ms, ` +
             `last ${duration.toFixed(2)}ms`,

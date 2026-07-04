@@ -47,7 +47,14 @@ function startProcess(command, args, options = {}) {
 
 function cleanup() {
   for (const proc of processes) {
-    if (!proc.killed) proc.kill("SIGTERM");
+    if (!proc.killed) {
+      try {
+        proc.kill("SIGTERM");
+      } catch {}
+      try {
+        proc.kill("SIGKILL");
+      } catch {}
+    }
   }
 }
 
@@ -251,3 +258,4 @@ cdp.close();
 cleanupChrome(browser);
 cleanup();
 console.log(`Smoke test passed. Screenshots in ${SHOT_DIR}`);
+process.exit(0);

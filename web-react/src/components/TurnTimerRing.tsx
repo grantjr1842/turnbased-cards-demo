@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 interface TurnTimerRingProps {
   active: boolean;
@@ -11,15 +11,20 @@ const CIRC = 2 * Math.PI * RADIUS;
 
 export function TurnTimerRing({ active, turnDeadline }: TurnTimerRingProps) {
   const circleRef = useRef<SVGCircleElement>(null);
+  const capRef = useRef<SVGCircleElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const [progressPct, setProgressPct] = useState(100);
 
   useEffect(() => {
     if (!active || !turnDeadline) {
-      setProgressPct(100);
       if (circleRef.current) {
         circleRef.current.style.strokeDashoffset = `${CIRC}`;
         circleRef.current.style.stroke = "var(--gold)";
+      }
+      if (capRef.current) {
+        capRef.current.setAttribute("cx", "26");
+        capRef.current.setAttribute("cy", String(26 - RADIUS));
+        capRef.current.setAttribute("r", "3.2");
+        capRef.current.classList.remove("critical");
       }
       if (svgRef.current) svgRef.current.classList.remove("critical");
       return;
@@ -34,7 +39,6 @@ export function TurnTimerRing({ active, turnDeadline }: TurnTimerRingProps) {
       const remaining = turnDeadline - now;
       const pct = Math.max(0, Math.min(100, (remaining / total) * 100));
       const isCritical = remaining < 2500;
-      setProgressPct(pct);
 
       if (circleRef.current) {
         circleRef.current.style.strokeDashoffset = `${CIRC - (pct / 100) * CIRC}`;
@@ -42,6 +46,16 @@ export function TurnTimerRing({ active, turnDeadline }: TurnTimerRingProps) {
       }
       if (svgRef.current) {
         svgRef.current.classList.toggle("critical", isCritical);
+      }
+      // Drive the cap dot via direct DOM mutation so the countdown never
+      // triggers a React re-render (avoids ~60 setState/sec).
+      if (capRef.current) {
+        const angle = (-90 + (pct / 100) * 360) * (Math.PI / 180);
+        capRef.current.setAttribute("cx", String(26 + Math.cos(angle) * RADIUS));
+        capRef.current.setAttribute("cy", String(26 + Math.sin(angle) * RADIUS));
+        const capCritical = pct > 0 && pct < 12;
+        capRef.current.setAttribute("r", capCritical ? "3.8" : "3.2");
+        capRef.current.classList.toggle("critical", capCritical);
       }
 
       if (remaining > 0) {
@@ -56,10 +70,6 @@ export function TurnTimerRing({ active, turnDeadline }: TurnTimerRingProps) {
   if (!active) return null;
 
   const strokeWidth = 3;
-  const angle = (-90 + (progressPct / 100) * 360) * (Math.PI / 180);
-  const capX = 26 + Math.cos(angle) * RADIUS;
-  const capY = 26 + Math.sin(angle) * RADIUS;
-  const isCritical = progressPct > 0 && progressPct < 12;
 
   return (
     <svg
@@ -93,10 +103,11 @@ export function TurnTimerRing({ active, turnDeadline }: TurnTimerRingProps) {
         style={{ transition: "stroke-dashoffset 0.1s linear, stroke 0.2s ease" } as CSSProperties}
       />
       <circle
-        cx={capX}
-        cy={capY}
-        r={isCritical ? 3.8 : 3.2}
-        className={`turn-timer-cap ${isCritical ? "critical" : ""}`}
+        ref={capRef}
+        cx="26"
+        cy={26 - RADIUS}
+        r="3.2"
+        className="turn-timer-cap"
         fill="var(--gold)"
       />
     </svg>

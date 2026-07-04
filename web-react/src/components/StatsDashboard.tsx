@@ -1,8 +1,23 @@
+import { useMemo } from "react";
 import { parsePlayerName } from "../gameHelpers";
 import { getStats } from "../stats";
 
 export function StatsDashboard() {
-  const stats = getStats();
+  // Stats live in localStorage and only change between matches; the Lobby
+  // remounts when returning from a table, so reading once on mount is enough.
+  // Memoizing avoids a localStorage + JSON.parse round-trip on every render
+  // (e.g. on every keystroke in the lobby form) and makes the `history`
+  // useMemo below actually effective.
+  const stats = useMemo(() => getStats(), []);
+  const history = useMemo(
+    () =>
+      (stats.history ?? []).map((entry) => ({
+        entry,
+        displayWinner: parsePlayerName(entry.winnerName).name,
+        opponentNames: entry.opponentNames.map((name) => parsePlayerName(name).name),
+      })),
+    [stats.history],
+  );
   if (stats.played === 0) return null;
 
   return (
@@ -56,7 +71,7 @@ export function StatsDashboard() {
               paddingRight: "4px",
             }}
           >
-            {stats.history.map((entry) => (
+            {history.map(({ entry, displayWinner, opponentNames }) => (
               <div
                 key={entry.id}
                 className="history-row"
@@ -81,9 +96,9 @@ export function StatsDashboard() {
                     {entry.win ? "Victory 🏆" : "Defeat 💀"}
                   </strong>
                   <span style={{ color: "var(--text-faint)", fontSize: "10px" }}>
-                    Winner: {parsePlayerName(entry.winnerName).name} • {Math.round(entry.durationSec)}s
+                    Winner: {displayWinner} • {Math.round(entry.durationSec)}s
                   </span>
-                  {entry.opponentNames && entry.opponentNames.length > 0 && (
+                  {opponentNames.length > 0 && (
                     <span
                       style={{
                         color: "var(--text-muted)",
@@ -94,7 +109,7 @@ export function StatsDashboard() {
                         maxWidth: "180px",
                       }}
                     >
-                      VS: {entry.opponentNames.map((name) => parsePlayerName(name).name).join(", ")}
+                      VS: {opponentNames.join(", ")}
                     </span>
                   )}
                 </div>

@@ -1288,6 +1288,62 @@ button:disabled {
   background: rgba(77, 166, 109, 0.12);
 }
 
+.table-coach-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(240, 198, 111, 0.09), rgba(255, 255, 255, 0.02)),
+    rgba(255, 255, 255, 0.02);
+}
+
+.table-coach-summary-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.table-coach-summary-label {
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.table-coach-summary-copy strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+
+.table-coach-summary-copy small {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.table-coach-summary-chip {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(240, 198, 111, 0.22);
+  background: rgba(240, 198, 111, 0.1);
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .table-coach-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.95fr);
@@ -2927,6 +2983,11 @@ button:disabled {
   pointer-events: none;
 }
 
+.table-overlay-stack {
+  position: relative;
+  z-index: 1000;
+}
+
 .card-alert-banner {
   background: linear-gradient(90deg, transparent, rgba(13, 11, 18, 0.92) 20% 80%, transparent);
   border-top: 1px solid var(--gold);
@@ -4005,6 +4066,15 @@ body,
     max-width: 100%;
   }
 
+  .table-coach-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .table-coach-summary-chip {
+    width: fit-content;
+  }
+
   .table-coach-grid {
     grid-template-columns: 1fr;
   }
@@ -4150,6 +4220,12 @@ input:focus-visible,
   .table-coach-badges {
     justify-content: flex-start;
     max-width: 100%;
+  }
+
+  .table-coach-summary {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 10px 12px;
   }
 
   .table-coach-grid {

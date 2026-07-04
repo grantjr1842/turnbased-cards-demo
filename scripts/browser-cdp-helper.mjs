@@ -55,7 +55,12 @@ export function startChrome({ chromeBin, debugPort, userDataDirPrefix }) {
 export function cleanupChrome(browser) {
   if (!browser) return;
   if (browser.proc && !browser.proc.killed) {
-    browser.proc.kill("SIGTERM");
+    try {
+      browser.proc.kill("SIGTERM");
+    } catch {}
+    try {
+      browser.proc.kill("SIGKILL");
+    } catch {}
   }
   if (browser.userDataDir) {
     try {

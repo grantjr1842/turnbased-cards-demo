@@ -2,8 +2,13 @@ import type { CardSchema, PlayerSchema, UnoState } from "./gameTypes";
 import type { Room } from "@colyseus/sdk";
 import { canPlaySchema, hasWildDrawFourAlternative } from "../../shared/index.ts";
 
+const AVATAR_NAME_RE = /^\[av-([a-z0-9]+)-([a-z0-9]+)\](.*)$/i;
+const BOT_NAME_RE = /^Bot\s+(\d+)$/i;
+const BOT_SYMBOLS = ["fox", "owl", "panda", "wolf"];
+const BOT_THEMES = ["rose", "sapphire", "aurora", "sol"];
+
 export function parsePlayerName(rawName: string) {
-  const match = rawName.match(/^\[av-([a-z0-9]+)-([a-z0-9]+)\](.*)$/);
+  const match = rawName.match(AVATAR_NAME_RE);
   if (match) {
     return {
       symbol: match[1],
@@ -12,14 +17,12 @@ export function parsePlayerName(rawName: string) {
     };
   }
 
-  const botMatch = rawName.match(/^Bot\s+(\d+)$/i);
+  const botMatch = rawName.match(BOT_NAME_RE);
   if (botMatch) {
     const num = parseInt(botMatch[1], 10);
-    const symbols = ["fox", "owl", "panda", "wolf"];
-    const themes = ["rose", "sapphire", "aurora", "sol"];
     return {
-      symbol: symbols[(num - 1) % symbols.length],
-      theme: themes[(num - 1) % themes.length],
+      symbol: BOT_SYMBOLS[(num - 1) % BOT_SYMBOLS.length],
+      theme: BOT_THEMES[(num - 1) % BOT_THEMES.length],
       name: rawName,
     };
   }

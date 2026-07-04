@@ -56,6 +56,11 @@ export function TableTurnCoach({
   const accent = getAccentLabel(coach.accent);
   const canDrawFallback = isMyTurn && coach.primaryAction !== "draw" && coach.primaryAction !== "uno";
   const legalPlayLabel = `${playableCardCount} legal play${playableCardCount === 1 ? "" : "s"}`;
+  const nextActionLabel = coach.primaryAction
+    ? coach.primaryLabel ?? (coach.primaryAction === "play" ? "Play selected" : coach.primaryAction === "draw" ? "Draw card" : "UNO!")
+    : isMyTurn
+      ? "Plan your move"
+      : "Watch the table";
   return (
     <section className={`table-coach ${accent}`} aria-live="polite">
       <div className="table-coach-hero">
@@ -72,6 +77,15 @@ export function TableTurnCoach({
             <span className="table-coach-badge selected">Selected: {selectedCardLabel}</span>
           )}
         </div>
+      </div>
+
+      <div className="table-coach-summary">
+        <div className="table-coach-summary-copy">
+          <span className="table-coach-summary-label">Next move</span>
+          <strong>{nextActionLabel}</strong>
+          <small>{coach.primaryHint}</small>
+        </div>
+        <div className="table-coach-summary-chip">{isMyTurn ? legalPlayLabel : "Hold your hand"}</div>
       </div>
 
       <div className="table-coach-grid">

@@ -70,9 +70,10 @@ function HandCardItemInner({
 
     if (dragY > 50) {
       if (playable) {
+        sfx.playPluck();
         playCard(card);
       } else {
-        sfx.playPluck();
+        sfx.playError();
         onUnplayableTap(card);
       }
     } else if (dragY < -25) {
@@ -83,9 +84,10 @@ function HandCardItemInner({
     } else if (Math.abs(dragY) < 10) {
       if (isSelected) {
         if (playable) {
+          sfx.playPluck();
           playCard(card);
         } else {
-          sfx.playPluck();
+          sfx.playError();
         }
       } else {
         setSelectedCardIdx(idx);
@@ -157,9 +159,10 @@ function HandCardItemInner({
           if (!canInteract) return;
           if (isSelected) {
             if (playable) {
+              sfx.playPluck();
               playCard(card);
             } else {
-              sfx.playPluck();
+              sfx.playError();
               onUnplayableTap(card);
             }
           } else {

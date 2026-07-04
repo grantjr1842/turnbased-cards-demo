@@ -18,6 +18,11 @@ export function WinnerPodium({ room, state, players, winnerSeat, meSeatIndex }: 
   const winAv = winner ? parsePlayerName(winner.name) : null;
   const votes = state?.rematchVotes ?? [];
   const humans = players.filter((p) => !p.isBot && p.connected);
+  const localPlayerEntry = meSeatIndex !== undefined
+    ? humans.find((p) => p.seatIndex === meSeatIndex)
+    : undefined;
+  const localAlreadyVoted = !!localPlayerEntry && votes.includes(localPlayerEntry.seatIndex);
+  const allVoted = humans.length > 0 && votes.length >= humans.length;
 
   const coins = useMemo(
     () =>
@@ -122,8 +127,18 @@ export function WinnerPodium({ room, state, players, winnerSeat, meSeatIndex }: 
           })}
         </div>
 
-        <button className="primary-btn" style={{ width: "100%" }} onClick={() => room?.send("vote_rematch")} type="button">
-          Vote Rematch
+        <button
+          className="primary-btn"
+          style={{ width: "100%" }}
+          onClick={() => room?.send("vote_rematch")}
+          type="button"
+          disabled={!localPlayerEntry || localAlreadyVoted || allVoted}
+        >
+          {allVoted
+            ? "Restarting…"
+            : localAlreadyVoted
+              ? "Waiting for other players…"
+              : "Vote Rematch"}
         </button>
       </div>
     </div>
