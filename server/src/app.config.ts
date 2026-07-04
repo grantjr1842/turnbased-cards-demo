@@ -4,6 +4,7 @@ import { UnoRoom } from "./rooms/UnoRoom.ts";
 import { DemoRoom } from "./rooms/DemoRoom.ts";
 import { register } from "./metrics.ts";
 import { applyMiddleware } from "./middleware/index.ts";
+import { healthResponse } from "./version.ts";
 
 function createPresence() {
   const redisUrl = process.env.REDIS_URL;
@@ -38,7 +39,7 @@ export default defineServer({
     applyMiddleware(app);
 
     app.get("/healthz", (_req, res) => {
-      res.json({ status: "ok" });
+      res.json(healthResponse());
     });
 
     app.get("/metrics", async (_req, res) => {

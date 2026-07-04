@@ -8,6 +8,7 @@ import { LobbyShell } from "./LobbyShell";
 import { AVATAR_SYMBOLS, AVATAR_THEMES, ATLAS_INDEX } from "../tableConfig";
 import { parsePlayerName } from "../gameHelpers";
 import { readStorage, writeStorage } from "../storage";
+import { VERSION } from "../version";
 
 interface LobbyProps {
   busy: boolean;
@@ -245,6 +246,9 @@ export function Lobby({
 
         {error && <p className="form-error">{error}</p>}
       </section>
+      <footer style={{ textAlign: "center", opacity: 0.5, fontSize: "0.75rem", padding: "8px 0" }}>
+        v{VERSION}
+      </footer>
     </LobbyShell>
   );
 }
