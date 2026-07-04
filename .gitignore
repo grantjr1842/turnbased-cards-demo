@@ -77,7 +77,10 @@ defold/.internal/
 
 # Agent browser temp files
 .tmp-agent-browser/
+.tmp-cdp-smoke/
 .superpowers/
+.stitch/
+.tokensave/
 
 # Test artifacts
 test-results/
