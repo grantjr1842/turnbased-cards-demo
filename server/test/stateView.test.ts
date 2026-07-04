@@ -98,7 +98,10 @@ describe("StateView lifecycle in UnoRoom", () => {
     const client = makeTestClient("human-0");
     room.onJoin(client, { name: "Alice" });
 
-    const player = room.state.players.get(String(room.state.currentPlayer))!;
+    // Use the client's own player (onJoin always seats them at the first bot
+    // seat) rather than `currentPlayer`, which is randomized by dealGame's
+    // shuffle and can be a skip/reverse seat — making this assertion flaky.
+    const player = room["findPlayerBySession"](client.sessionId)!;
     expect(client.view!.has(player)).toBe(true);
 
     room.onDispose();
@@ -168,7 +171,9 @@ describe("pushCardToHand StateView integration", () => {
     const client = makeTestClient("human-0");
     room.onJoin(client, { name: "Alice" });
 
-    const player = room.state.players.get(String(room.state.currentPlayer))!;
+    // Use the client's own player — view.add only fires for the owning
+    // client, so a random currentPlayer (bot seat) would make this flaky.
+    const player = room["findPlayerBySession"](client.sessionId)!;
 
     room["pushCardToHand"](player, {
       type: "color",
@@ -192,7 +197,9 @@ describe("pushCardToHand StateView integration", () => {
     const client = makeTestClient("human-0");
     room.onJoin(client, { name: "Alice" });
 
-    const player = room.state.players.get(String(room.state.currentPlayer))!;
+    // Use the client's own player — view.add only fires for the owning
+    // client, so a random currentPlayer (bot seat) would make this flaky.
+    const player = room["findPlayerBySession"](client.sessionId)!;
     const initialHandSize = player.hand.length;
     const cards = [
       { type: "color" as const, color: "red", value: "3", id: "test_red_3" },

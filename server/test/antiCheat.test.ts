@@ -275,7 +275,10 @@ describe("Anti-cheat: state snapshot comparison", () => {
     const client = makeTestClient("human-0");
     room.onJoin(client, { name: "Alice" });
 
-    const player = room.state.players.get(String(room.state.currentPlayer))!;
+    // Use the client's own player rather than `currentPlayer`, which is
+    // randomized by dealGame's shuffle (skip/reverse first card moves it off
+    // seat 0) and made this assertion flaky.
+    const player = room["findPlayerBySession"](client.sessionId)!;
     room["pushCardToHand"](player, {
       type: "color", color: "blue", value: "7", id: "test_blue_7",
     });
